@@ -50,10 +50,13 @@ class ObjectDetectorClass:
 
         allDetections["img_shape"] = data[0].shape
 
+        outFileName = os.path.join(dirToSave,"objectDetection.pkl")
+
         # print(len(allDetections["boxes"]))
-        with open(os.path.join(dirToSave,"objectDetection.pkl"),'wb') as fw:
+        with open(outFileName,'wb') as fw:
             pickle.dump(allDetections,fw)
         
+        return outFileName
 
 
 

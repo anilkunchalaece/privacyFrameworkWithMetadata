@@ -12,28 +12,38 @@ def getPersonsFromPkl(pklFile):
         "img_shape" : data["img_shape"]
     }
     for i_d, img in enumerate(data["img_names"]) :
+                
         labelIdxs = np.argwhere(np.array(data["labels"][i_d]) == 1).squeeze()
-        boxes = np.array(data["boxes"][i_d])[labelIdxs].tolist()
+        bboxes = np.array(data["boxes"][i_d])[labelIdxs]
         scores = np.array(data["scores"][i_d])[labelIdxs].tolist()
+        # if there is only one bbox in the image
+        if bboxes.ndim == 1 :
+            dets = bboxes.tolist()
+            dets.append(scores)
+            dets = np.expand_dims(dets, axis=0)
+            outDetections["personDetections"].append({
+                "img_name" : img,
+                "detections" : np.array(dets)
+            })            
+        else :
+            bboxes = bboxes.tolist()        
+            dets = []            
+            for i,b in enumerate(bboxes) :
+                b.append(scores[i])
+                dets.append(np.array(b))
 
-        dets = []
-        for i,b in enumerate(boxes) :
-            b.append(scores[i])
-            dets.append(b)
-
-
-        outDetections["personDetections"].append({
-            "img_name" : img,
-            "detections" : dets
-        })
+            outDetections["personDetections"].append({
+                "img_name" : img,
+                "detections" : np.array(dets)
+            })
     
     # For BYTETRACK
     # difference between img_info and img_size ref (https://github.com/ifzhang/ByteTrack/issues/23)
     # img_info is the origin size and img_size is the inference size.
 
-    print(len(outDetections["personDetections"]))
+    # print(len(outDetections["personDetections"]))
     # print(personDets)
-
+    outDetections["personDetections"] = sorted(outDetections["personDetections"], key=lambda d:d["img_name"])
     return outDetections
 
 
