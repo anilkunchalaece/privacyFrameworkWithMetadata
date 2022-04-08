@@ -6,7 +6,7 @@ from scipy.io import loadmat
 import numpy_indexed as npi
 
 class PreprocessRAPv2:
-    def __init__(self,fileLocation):
+    def __init__(self,fileLocation,data_percent=100):
         self.fileLocation = fileLocation
 
     def getAttrOfIntrest(self):
@@ -46,9 +46,10 @@ class PreprocessRAPv2:
         attr_values = np.array([list(x) for x in data["RAP_annotation"][0][0][1].tolist()])
 
         partition = {}
-        partition["train"] = data["RAP_annotation"][0][0][4][0][1][0][0][0][0]
-        partition["test"] = data["RAP_annotation"][0][0][4][0][1][0][0][1][0]
-        partition["val"] = data["RAP_annotation"][0][0][4][0][1][0][0][2][0]
+        partition["train"] = data["RAP_annotation"][0][0][4][0][1][0][0][0][0].tolist()
+        partition["test"] = data["RAP_annotation"][0][0][4][0][1][0][0][1][0].tolist()
+        partition["val"] = data["RAP_annotation"][0][0][4][0][1][0][0][2][0].tolist()
+        partition["val"].remove(84928) # remove last element
 
         print(F"Original dataset shape is {attr_values.shape}")
         
@@ -65,26 +66,15 @@ class PreprocessRAPv2:
         if not (len(attr_intr) == len(attr_intr_idxs)) :
             raise AssertionError("ERROR :::  attr_intr with length {len(attr_intr)} does not match attr_intr_idxs \
                 with lenght {len(attr_intr_idxs)}")
-        
+        # print(attr_values[:,attr_intr_idxs].shape)
         dataToSend = {
-            "images" : img_names,
-            "attributes" : attr_values[attr_intr_idxs],
+            "images" : np.array(img_names),
+            "attributes" : attr_values[:,attr_intr_idxs],
             "attribute_names" : attr_intr,
-            "parition" : partition
+            "partition" : partition
         }
 
         return dataToSend
-
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__" :
