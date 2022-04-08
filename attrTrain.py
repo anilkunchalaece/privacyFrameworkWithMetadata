@@ -5,6 +5,8 @@ from torchvision.transforms import transforms
 import torchvision
 import torch
 import torch.nn as nn
+from torch.optim.lr_scheduler import ReduceLROnPlateau # Learning rate Scheduler
+
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score
@@ -100,13 +102,58 @@ def train(args):
     model = AttrNet(n_attr)
     model = model.to(device)
 
-    opt = torch.optim.Adam(model.parameters(),lr=0.000001)
+    opt = torch.optim.Adam(model.parameters(),lr=args.lr)
     criterion = nn.BCEWithLogitsLoss()
+
+    # Ref - https://www.deeplearningwizard.com/deep_learning/boosting_models_pytorch/lr_scheduling/
+    # lr = lr * factor 
+    # mode='max': look for the maximum validation accuracy to track
+    # patience: number of epochs - 1 where loss plateaus before decreasing LR
+            # patience = 0, after 1 bad epoch, reduce LR
+    # factor = decaying factor
+    scheduler = ReduceLROnPlateau(opt, mode='min', factor=0.1, patience=5, verbose=True)
+
+    lossDict = {
+        "tl" : [],
+        "vl" : []
+    }
+
+    # earlyStopping params
+    patience = 10 # wait for this many epochs before stopping the training
+    validLossPrev = float("inf") #used for early stopping
+    badEpoch = 0
+
+    # create a dir to save attrmodels
+    os.makedirs(os.path.join(args.tmp_dir,"models","attrNet"))
 
     for epoch in range(args.nepochs):
         tl = train_loop(trainDataLoader, model, criterion, opt)
         vl = valid_loop(valDataLoader, model, criterion)
-        print(F"epoch {epoch}, tl: {tl}, vl: {vl}")
+        
+        #run lr scheduler
+        scheduler.step(vl)
+
+        # Early stopping
+        if vl < validLossPrev :
+            badEpoch = 0 # reset bad epoch
+            if epoch % 3 == 0 : torch.save(model.state_dict(),F"{args.tmp_dir}/models/attrNet/attrnet_ckpt_{epoch}.pth")
+        else :
+            if vl - validLossPrev >= 0.0001 : # min_delta
+                badEpoch = badEpoch + 1
+            if badEpoch >= patience :
+                print(F"Training stopped early due to overfitting in epoch {epoch}")
+                break
+        validLossPrev = vl # store current valid loss
+
+        # save the losses in dict for postprocess
+        lossDict["tl"].append(tl)
+        lossDict["vl"].append(vl)
+
+    #once training loop terminated, dump the losses into file
+    with open(os.path.join(os.path.join(args.tmp_dir,"attrNetLosses.json")),'w') as fd:
+        json.dump(lossDict,fd)
+
+
 
 
 
@@ -120,7 +167,8 @@ if __name__ == "__main__" :
     parser.add_argument("--src_dir",type=str,help="input imgs location",required=True, default=None)
     parser.add_argument("--img_height",type=str, help="image height for training", required=False, default=256)
     parser.add_argument("--img_width",type=str, help="image width for training", required=False, default=192)
-    parser.add_argument("--nepochs", type=int, help="no of epochs for training", required=False, default=100),
+    parser.add_argument("--nepochs", type=int, help="no of epochs for training", required=False, default=100)
+    parser.add_argument("--lr", type=float, help="learning rate for training", required=False, default=0.00001)
     parser.add_argument("--batch_size",type=int, help="batch size used for traning", required=False,default=100)
     parser.add_argument("--data_percent",type=float, help="percentage of data to be used for training", required=False, default=100)
     parser.add_argument("--dataset", type=str, help="dataset location", required=True)
