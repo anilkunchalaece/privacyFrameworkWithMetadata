@@ -23,3 +23,5 @@
 - Do we need to look for SOTA pedestrian attribute recognision?
   - I'm currently using transfer learning to make a model. May be for later stage, we can look into [Rethinking of PAR](https://github.com/valencebond/Rethinking_of_PAR)
 
+- Tracklets bbox image naming convention
+  - F"t_{tIds[i]}-{os.path.basename(imgName)}"

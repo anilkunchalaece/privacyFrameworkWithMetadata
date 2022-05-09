@@ -17,8 +17,8 @@ import json,os,sys,pickle
 import matplotlib.pyplot as plt
 import argparse
 
-from lib.utils.preprocessRAPv2 import PreprocessRAPv2
-from lib.datasets.attrDataset import AttrDataset
+from lib.utils.preprocessRAPv2 import PreprocessRAPv2, getAttrOfIntrest
+from lib.datasets.attrDataset import AttrDataset, AttrDatasetInference
 from lib.attr.attrNet import AttrNet
 
 device = torch.device('cuda' if torch.cuda.is_available else 'cpu')
@@ -124,7 +124,7 @@ def train(args):
     badEpoch = 0
 
     # create a dir to save attrmodels
-    os.makedirs(os.path.join(args.tmp_dir,"models","attrNet"))
+    os.makedirs(os.path.join(args.tmp_dir,"models","attrNet"),exist_ok=True)
 
     for epoch in range(args.nepochs):
         tl = train_loop(trainDataLoader, model, criterion, opt)
@@ -154,26 +154,77 @@ def train(args):
         json.dump(lossDict,fd)
 
 
+def infer(args):
+    # data = PreprocessRAPv2(args.dataset).processData()
+    # n_attr = data["attributes"].shape[1]
+    attrs = getAttrOfIntrest()
+    n_attr = len(attrs)
+
+    transform_infer = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Resize((args.img_height,args.img_width)),
+    ])
+
+    inferDataset = AttrDatasetInference(args.attr_infer_dir, transform_infer)
 
 
+    inferDataLoader = DataLoader(inferDataset,batch_size=args.batch_size,shuffle=True,drop_last=False)
 
+    print(F"infer dataloader length {len(inferDataLoader)}")  
+    model = AttrNet(n_attr)
+    model.load_state_dict(torch.load(args.attr_trained_model))
+    model = model.to(device)
+    model.eval()
 
+    results = {
+        "attrs" : np.empty(shape=(0,n_attr)),
+        "attribute_names" : attrs,
+        "imgs" : []
+    }
+    
+    for _img in inferDataLoader :
+        img = _img["image"].to(device)
+        pred_attrs = model(img)
+        
+        pred_attrs =  torch.sigmoid(pred_attrs)
+        pred_attrs = pred_attrs.detach().cpu().numpy()
+        pred_attrs[pred_attrs >= 0.50] = 1
+        pred_attrs[pred_attrs < 0.50] = 0
 
+        results["attrs"] = np.append(results["attrs"], pred_attrs,axis=0)
+        results["imgs"].extend([os.path.basename(i) for i in _img["fileName"]])
+    
+    # print(results["attrs"].shape)
+    outFile = os.path.join(args.tmp_dir,"tracklet_attrs.pickle")
 
+    with open(outFile,"wb") as fd:
+        pickle.dump(results,fd)
+
+    return outFile
 
 if __name__ == "__main__" :
-    # cmdToRun - ython attrTrain.py --src_dir /home/akunchala/Documents/z_Datasets/RAP_v2/RAP_dataset --dataset /home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat
+    # cmdToRun - python attrTrain.py --src_dir /home/akunchala/Documents/z_Datasets/RAP_v2/RAP_dataset --dataset /home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat
     parser = argparse.ArgumentParser()
-    parser.add_argument("--src_dir",type=str,help="input imgs location",required=True, default=None)
+    parser.add_argument("--action", type=str, help="train / infer",required=False, default="infer")
+
+    # args for traning
+    parser.add_argument("--src_dir",type=str,help="input imgs location",required=False, default=None)
     parser.add_argument("--img_height",type=str, help="image height for training", required=False, default=256)
     parser.add_argument("--img_width",type=str, help="image width for training", required=False, default=192)
     parser.add_argument("--nepochs", type=int, help="no of epochs for training", required=False, default=100)
     parser.add_argument("--lr", type=float, help="learning rate for training", required=False, default=0.00001)
     parser.add_argument("--batch_size",type=int, help="batch size used for traning", required=False,default=100)
     parser.add_argument("--data_percent",type=float, help="percentage of data to be used for training", required=False, default=100)
-    parser.add_argument("--dataset", type=str, help="dataset location", required=True)
+    parser.add_argument("--dataset", type=str, help="dataset/attributes location", required=False)
     parser.add_argument("--tmp_dir", type=str,help="tmp dir to store intermediate files", required=False, default="tmp")
+    
+    # args for inference
+    parser.add_argument("--attr_infer_dir", type=str, help="dir contains tracklets for inference",required=False, default="tmp/tracklets")
+    parser.add_argument("--attr_trained_model", type=str, help="path to trained model",required=False, default="models/attrnet_ckpt_975.pth")
 
     args = parser.parse_args()
-    train(args)
-    
+
+    if args.action == "train" :
+        train(args)
+    else :
+        infer(args)

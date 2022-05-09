@@ -5,38 +5,39 @@ import random
 from scipy.io import loadmat
 import numpy_indexed as npi
 
+def getAttrOfIntrest():
+    return [
+            # Gender
+            'Femal',
+
+            # Age
+            'AgeLess16','Age17-30','Age31-45','Age46-60','AgeBiger60',
+            
+            # BodyShape
+            'BodyFatter','BodyFat','BodyNormal','BodyThin','BodyThiner',
+            
+            # Upper body clothing
+            'ub-Shirt','ub-Sweater','ub-Vest','ub-TShirt','ub-Cotton','ub-Jacket','ub-SuitUp',
+            'ub-Tight','ub-ShortSleeve','ub-Others','ub-ColorBlack','ub-ColorWhite','ub-ColorGray',
+            'up-ColorRed','ub-ColorGreen','ub-ColorBlue','ub-ColorSilver','ub-ColorYellow',
+            'ub-ColorBrown','ub-ColorPurple','ub-ColorPink','ub-ColorOrange','ub-ColorMixture','ub-ColorOther',
+            
+            # Lower body clothing
+            'lb-LongTrousers','lb-Shorts','lb-Skirt','lb-ShortSkirt','lb-LongSkirt','lb-Dress','lb-Jeans',
+            'lb-TightTrousers','lb-ColorBlack','lb-ColorWhite','lb-ColorGray','lb-ColorRed','lb-ColorGreen',
+            'lb-ColorBlue','lb-ColorSilver','lb-ColorYellow','lb-ColorBrown','lb-ColorPurple',
+            'lb-ColorPink','lb-ColorOrange','lb-ColorMixture','lb-ColorOther',
+            
+            # Attachment
+            'attachment-Backpack','attachment-ShoulderBag','attachment-HandBag','attachment-WaistBag',
+            'attachment-Box','attachment-PlasticBag','attachment-PaperBag','attachment-HandTrunk',
+            'attachment-Baby','attachment-Other',
+        ]
+
+
 class PreprocessRAPv2:
     def __init__(self,fileLocation,data_percent=100):
         self.fileLocation = fileLocation
-
-    def getAttrOfIntrest(self):
-        return [
-                # Gender
-                'Femal',
-
-                # Age
-                'AgeLess16','Age17-30','Age31-45','Age46-60','AgeBiger60',
-                
-                # BodyShape
-                'BodyFatter','BodyFat','BodyNormal','BodyThin','BodyThiner',
-                
-                # Upper body clothing
-                'ub-Shirt','ub-Sweater','ub-Vest','ub-TShirt','ub-Cotton','ub-Jacket','ub-SuitUp',
-                'ub-Tight','ub-ShortSleeve','ub-Others','ub-ColorBlack','ub-ColorWhite','ub-ColorGray',
-                'up-ColorRed','ub-ColorGreen','ub-ColorBlue','ub-ColorSilver','ub-ColorYellow',
-                'ub-ColorBrown','ub-ColorPurple','ub-ColorPink','ub-ColorOrange','ub-ColorMixture','ub-ColorOther',
-                
-                # Lower body clothing
-                'lb-LongTrousers','lb-Shorts','lb-Skirt','lb-ShortSkirt','lb-LongSkirt','lb-Dress','lb-Jeans',
-                'lb-TightTrousers','lb-ColorBlack','lb-ColorWhite','lb-ColorGray','lb-ColorRed','lb-ColorGreen',
-                'lb-ColorBlue','lb-ColorSilver','lb-ColorYellow','lb-ColorBrown','lb-ColorPurple',
-                'lb-ColorPink','lb-ColorOrange','lb-ColorMixture','lb-ColorOther',
-                
-                # Attachment
-                'attachment-Backpack','attachment-ShoulderBag','attachment-HandBag','attachment-WaistBag',
-                'attachment-Box','attachment-PlasticBag','attachment-PaperBag','attachment-HandTrunk',
-                'attachment-Baby','attachment-Other',
-            ]
     
     def processData(self):
         data = loadmat(open(self.fileLocation,'rb'))
@@ -53,7 +54,7 @@ class PreprocessRAPv2:
 
         print(F"Original dataset shape is {attr_values.shape}")
         
-        attr_intr = self.getAttrOfIntrest()
+        attr_intr = getAttrOfIntrest()
         attr_intr_idxs = []
         for attr in attr_intr :
             for idx, attr_name in enumerate(attribute_names) :
