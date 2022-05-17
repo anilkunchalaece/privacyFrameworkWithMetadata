@@ -6,11 +6,20 @@ from lib.utils.preprocessRAPv2 import getAttrOfIntrest
 import attrTrain
 
 import argparse
+import shutil
 import json
 import pandas as pd
 import cv2
 from multiprocessing import Pool
+import torch
 from sklearn import preprocessing
+
+from wireframeGen import WireframeGen
+
+# Config for PARE
+CFG = 'data/pare/checkpoints/pare_w_3dpw_config.yaml'
+CKPT = 'data/pare/checkpoints/pare_w_3dpw_checkpoint.ckpt'
+MIN_NUM_FRAMES = 0
 
 class MetadataGenerator:
     def __init__(self,args):
@@ -28,7 +37,10 @@ class MetadataGenerator:
         personDets = getPersonsFromPkl(detFile)
         # print(personDets.keys())
         return personDets
-    
+
+
+    # run the byteTracker to generate metadata
+    # used to get persondetections and tracking results will be used wireframification i.e PARE
     def runByteTracker(self):
         dets = self.getPersonDetections()
         tracker = BYTETracker(args)
@@ -71,8 +83,13 @@ class MetadataGenerator:
 
         # dump the data into json file
         outFile = os.path.join(self.args.tmp_dir, "personDetectionResults.json")
+        detsObj = {
+            "image_shape" : dets["img_shape"], # [channels, width, height]
+            "tracklets" : results
+        }
+
         with open(outFile,'w') as fd :
-            json.dump(results,fd)
+            json.dump(detsObj,fd)
         
         # print(F"total no of values are {len(results)}")
         self.extractBboxForTrackers(results)
@@ -108,6 +125,11 @@ class MetadataGenerator:
 
 
     def generateMetadaForEachImg(self):
+        
+        # run the byteTracker to generate metadata
+        # used to get persondetections and tracking results will be used wireframification i.e PARE
+        self.runByteTracker()
+        
         # run inference on tracklet bboxes and get the fileName where attrs are stored
         attrFile = attrTrain.infer(args=self.args)
 
@@ -120,7 +142,8 @@ class MetadataGenerator:
         #process the detection file to get the detections per image
         with open(detectionFile) as fd :
             dets = json.load(fd)
-            dets = pd.DataFrame(dets)
+            img_shape = dets["image_shape"]
+            dets = pd.DataFrame(dets["tracklets"])
             # print(dets["imageName"].unique())
         
         with open(attrFile,'rb') as fd :
@@ -132,7 +155,7 @@ class MetadataGenerator:
         # TODO - speedup this with multiprocessing
         for img in detImgs :
             attr_img = []
-            print(img)
+            # print(img)
             det_i = dets.loc[dets['imageName'] == img]
             for i, row in det_i.iterrows():
                 r = row.to_dict()
@@ -140,6 +163,7 @@ class MetadataGenerator:
                     attr_i = attrs["imgs"].index(r["timgName"])
                     attr_img.append({
                         "bbox" : r["bbox"],
+                        "tid" : r["tid"],
                         "attr" : self.processAttrs(attrs["attrs"][attr_i])
                     })
                 except Exception as e:
@@ -147,9 +171,13 @@ class MetadataGenerator:
                     # raise
             # save the attr_img file in metadata dir
             fName = os.path.join(imgMetadataDir,F"{img.split('.')[0]}.json")
+            outObj = {
+                "image_shape" : img_shape,
+                "metadata" : attr_img
+            }
             # print(fName)
             with open(fName,'w') as fd:
-                json.dump(attr_img, fd)
+                json.dump(outObj, fd)
 
     def processAttrs(self,attrs) :
         attrs = attrs.tolist()
@@ -178,6 +206,40 @@ class MetadataGenerator:
                 attrs_out.append("NA")
         return attrs_out
 
+    # used to check metadata for each tracker
+    def checkTrackAttrs(self):
+        metadataDir = os.path.join(args.tmp_dir,"metadata")
+        fList = os.listdir(metadataDir)
+        tId = 6
+        for f in fList :
+            with open(os.path.join(metadataDir,f)) as fp :
+                d = json.load(fp)
+                for md in d["metadata"] :
+                    if md["tid"] == tId :
+                        print(",".join(md["attr"]))
+    
+    # used to generate wireframe for given wireframes
+    def generateWireframes(self):
+        wg = WireframeGen(self.args)
+        wg.generateWireframes(self.args.src_imgs)
+    
+def renameSrcDir(srcDir) :
+    # Check fileNames -> files should start with 0, if not rename them
+    fList = sorted(os.listdir(srcDir))
+    startIdx = int(fList[0].split(".")[0])
+    endIdx = int(fList[-1].split(".")[0])
+
+    if startIdx != 0 :
+        for f in fList :
+            srcName = os.path.join(srcDir,f)
+            desName = os.path.join(srcDir,F"{int(f.split('.')[0]) - 1}.{f.split('.')[-1]}")
+            shutil.move(srcName,desName)    
+
+def main(args):
+    renameSrcDir(args.src_imgs)
+    mg = MetadataGenerator(args)
+    mg.generateMetadaForEachImg()
+    mg.generateWireframes()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -200,11 +262,28 @@ if __name__ == "__main__":
     parser.add_argument("--img_width",type=str, help="image width for training", required=False, default=192)
     parser.add_argument("--attr_infer_dir", type=str, help="dir contains tracklets for inference",required=False, default="tmp/tracklets")
     parser.add_argument("--attr_trained_model", type=str, help="path to trained model",required=False, default="models/attrnet_ckpt_975.pth")
-    parser.add_argument("--batch_size",type=int, help="batch size used for traning", required=False,default=100)
+    parser.add_argument("--attr_batch_size",type=int, help="batch size used for traning", required=False,default=100)
 
+    #PARE configuration
+    parser.add_argument('--cfg', type=str, default=CFG, help='config file that defines model hyperparams')
+    parser.add_argument('--ckpt', type=str, default=CKPT, help='checkpoint path')
+    parser.add_argument('--tracking_method', type=str, default='bbox', choices=['bbox', 'pose'],
+                        help='tracking method to calculate the tracklet of a subject from the input video')
+    parser.add_argument('--batch_size', type=int, default=16, help='batch size of PARE')
+    parser.add_argument('--display', action='store_true', help='visualize the results of each step during demo')
+    parser.add_argument('--smooth', action='store_true', help='smooth the results to prevent jitter')
+    parser.add_argument('--min_cutoff', type=float, default=0.004, help='one euro filter min cutoff, Decreasing the minimum cutoff frequency decreases slow speed jitter')
+    parser.add_argument('--beta', type=float, default=1.0, help='one euro filter beta. Increasing the speed coefficient(beta) decreases speed lag.')
+    parser.add_argument('--no_render', action='store_true', help='disable final rendering of output video.')
+    parser.add_argument('--no_save', action='store_true', help='disable final save of output results.')
+    parser.add_argument('--wireframe', action='store_true', help='render all meshes as wireframes.')
+    parser.add_argument('--sideview', action='store_true', help='render meshes from alternate viewpoint.')
+    parser.add_argument('--draw_keypoints', action='store_true', help='draw 2d keypoints on rendered image.')
+    parser.add_argument('--save_obj', action='store_true', help='save results as .obj files.')
 
     args = parser.parse_args()
-
-    mg = MetadataGenerator(args)
-    mg.runByteTracker()
-    mg.generateMetadaForEachImg()
+    main(args)
+    # mg = MetadataGenerator(args)
+    # mg.runByteTracker()
+    # mg.generateMetadaForEachImg()
+    # mg.checkTrackAttrs()

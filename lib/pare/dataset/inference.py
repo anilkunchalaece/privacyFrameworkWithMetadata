@@ -33,10 +33,12 @@ class Inference(Dataset):
             for x in os.listdir(image_folder)
             if x.endswith('.png') or x.endswith('.jpg') or x.endswith('.jpeg')
         ])
-        self.image_file_names = sorted(self.image_file_names)
+        self.image_file_names = [ os.path.join(image_folder,F"{y}.{os.listdir(image_folder)[0].split('.')[-1]}") for y in sorted([int(os.path.basename(x).split(".")[0]) for x in self.image_file_names])]
 
         self.image_file_names = np.array(self.image_file_names) \
             if frames is None else np.array(self.image_file_names)[frames]
+
+        # print(self.image_file_names)
 
         self.scale = scale
         self.bboxes = bboxes

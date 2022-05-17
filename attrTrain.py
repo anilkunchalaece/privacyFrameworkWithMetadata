@@ -91,8 +91,8 @@ def train(args):
     valDataset = AttrDataset(data["images"][data["partition"]["val"]].tolist(),data["attributes"][data["partition"]["val"],:],transform_eval,args.src_dir)
 
 
-    trainDataLoader = DataLoader(trainDataset,batch_size=args.batch_size,shuffle=True,drop_last=True)
-    valDataLoader = DataLoader(valDataset,batch_size=args.batch_size,shuffle=True,drop_last=True)
+    trainDataLoader = DataLoader(trainDataset,batch_size=args.attr_batch_size,shuffle=True,drop_last=True)
+    valDataLoader = DataLoader(valDataset,batch_size=args.attr_batch_size,shuffle=True,drop_last=True)
     
     print(F"train dataloader length {len(trainDataLoader)} val dataloader length {len(valDataLoader)}")
 
@@ -199,7 +199,9 @@ def infer(args):
 
     with open(outFile,"wb") as fd:
         pickle.dump(results,fd)
-
+    
+    del model
+    
     return outFile
 
 if __name__ == "__main__" :
@@ -213,7 +215,7 @@ if __name__ == "__main__" :
     parser.add_argument("--img_width",type=str, help="image width for training", required=False, default=192)
     parser.add_argument("--nepochs", type=int, help="no of epochs for training", required=False, default=100)
     parser.add_argument("--lr", type=float, help="learning rate for training", required=False, default=0.00001)
-    parser.add_argument("--batch_size",type=int, help="batch size used for traning", required=False,default=100)
+    parser.add_argument("--attr_batch_size",type=int, help="batch size used for traning", required=False,default=100)
     parser.add_argument("--data_percent",type=float, help="percentage of data to be used for training", required=False, default=100)
     parser.add_argument("--dataset", type=str, help="dataset/attributes location", required=False)
     parser.add_argument("--tmp_dir", type=str,help="tmp dir to store intermediate files", required=False, default="tmp")

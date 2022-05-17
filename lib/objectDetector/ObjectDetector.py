@@ -56,6 +56,8 @@ class ObjectDetectorClass:
         with open(outFileName,'wb') as fw:
             pickle.dump(allDetections,fw)
         
+        del self.detector
+
         return outFileName
 
 

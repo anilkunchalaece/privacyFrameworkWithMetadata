@@ -228,7 +228,7 @@ def get_single_image_crop_demo(image, bbox, kp_2d, scale=1.2, crop_size=224):
         image = image.numpy()
     elif not isinstance(image, np.ndarray):
         raise('Unknown type for object', type(image))
-
+    
     crop_image, trans = generate_patch_image_cv(
         cvimg=image.copy(),
         c_x=bbox[0],

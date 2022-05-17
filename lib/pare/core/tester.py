@@ -24,7 +24,7 @@ import numpy as np
 from tqdm import tqdm
 from loguru import logger
 from yolov3.yolo import YOLOv3
-from multi_person_tracker import MPT
+# from multi_person_tracker import MPT
 from torch.utils.data import DataLoader
 from torchvision.models.detection import keypointrcnn_resnet50_fpn
 
@@ -115,55 +115,62 @@ class PARETester:
         load_pretrained_model(self.model, ckpt, overwrite_shape_mismatch=True, remove_lightning=True)
         logger.info(f'Loaded pretrained weights from \"{self.args.ckpt}\"')
 
-    def run_tracking(self, video_file, image_folder):
-        # ========= Run tracking ========= #
-        if self.args.tracking_method == 'pose':
-            if not os.path.isabs(video_file):
-                video_file = os.path.join(os.getcwd(), video_file)
-            tracking_results = run_posetracker(video_file, staf_folder=self.args.staf_dir, display=self.args.display)
-        else:
-            # run multi object tracker
-            mot = MPT(
-                device=self.device,
-                batch_size=self.args.tracker_batch_size,
-                display=self.args.display,
-                detector_type=self.args.detector,
-                output_format='dict',
-                yolo_img_size=self.args.yolo_img_size,
-            )
-            tracking_results = mot(image_folder)
+    # we are not running tracker using MPT 
+    # BYTETracker detections are used to run this
+    # def run_tracking(self, video_file, image_folder):
+    #     # ========= Run tracking ========= #
+    #     if self.args.tracking_method == 'pose':
+    #         if not os.path.isabs(video_file):
+    #             video_file = os.path.join(os.getcwd(), video_file)
+    #         tracking_results = run_posetracker(video_file, staf_folder=self.args.staf_dir, display=self.args.display)
+    #     else:
+    #         # run multi object tracker
+    #         mot = MPT(
+    #             device=self.device,
+    #             batch_size=self.args.tracker_batch_size,
+    #             display=self.args.display,
+    #             detector_type=self.args.detector,
+    #             output_format='dict',
+    #             yolo_img_size=self.args.yolo_img_size,
+    #         )
+    #         tracking_results = mot(image_folder)
 
-        # remove tracklets if num_frames is less than MIN_NUM_FRAMES
-        for person_id in list(tracking_results.keys()):
-            if tracking_results[person_id]['frames'].shape[0] < MIN_NUM_FRAMES:
-                del tracking_results[person_id]
+    #     # remove tracklets if num_frames is less than MIN_NUM_FRAMES
+    #     for person_id in list(tracking_results.keys()):
+    #         if tracking_results[person_id]['frames'].shape[0] < MIN_NUM_FRAMES:
+    #             del tracking_results[person_id]
 
-        return tracking_results
+    #     return tracking_results
 
-    def run_detector(self, image_folder):
-        # run multi object tracker
-        mot = MPT(
-            device=self.device,
-            batch_size=self.args.tracker_batch_size,
-            display=self.args.display,
-            detector_type=self.args.detector,
-            output_format='dict',
-            yolo_img_size=self.args.yolo_img_size,
-        )
-        bboxes = mot.detect(image_folder)
-        return bboxes
+    # def run_detector(self, image_folder):
+    #     # run multi object tracker
+    #     mot = MPT(
+    #         device=self.device,
+    #         batch_size=self.args.tracker_batch_size,
+    #         display=self.args.display,
+    #         detector_type=self.args.detector,
+    #         output_format='dict',
+    #         yolo_img_size=self.args.yolo_img_size,
+    #     )
+    #     bboxes = mot.detect(image_folder)
+    #     return bboxes
 
     @torch.no_grad()
-    def run_on_image_folder(self, image_folder, detections, output_path, output_img_folder, bbox_scale=1.0):
+    def run_on_image_folder(self, image_folder, _detections, output_path, bbox_scale=1.0):
         image_file_names = [
             os.path.join(image_folder, x)
             for x in os.listdir(image_folder)
             if x.endswith('.png') or x.endswith('.jpg') or x.endswith('.jpeg')
         ]
         image_file_names = sorted(image_file_names)
-
+        # print(image_file_names)
+        detections = [ _detections[d]['bbox'] for d in _detections.keys() ]
+        output_img_folder = os.path.join(output_path,"wireframes")
+        
         for img_idx, img_fname in enumerate(image_file_names):
             dets = detections[img_idx]
+
+            print(dets)
 
             if len(dets) < 1:
                 continue
@@ -271,6 +278,7 @@ class PARETester:
                 if self.args.sideview:
                     img = np.concatenate([img, side_img], axis=1)
 
+                print(os.path.join(output_img_folder, os.path.basename(img_fname)))   
                 cv2.imwrite(os.path.join(output_img_folder, os.path.basename(img_fname)), img)
 
                 if self.args.display:
@@ -295,8 +303,9 @@ class PARETester:
             elif self.args.tracking_method == 'pose':
                 joints2d = tracking_results[person_id]['joints2d']
 
+            # frames = [ int(f.split(".")[0]) for f in tracking_results[person_id]['frames']]
             frames = tracking_results[person_id]['frames']
-
+            
             dataset = Inference(
                 image_folder=image_folder,
                 frames=frames,
@@ -309,7 +318,7 @@ class PARETester:
             frames = dataset.frames
             has_keypoints = True if joints2d is not None else False
 
-            dataloader = DataLoader(dataset, batch_size=self.args.batch_size, num_workers=8)
+            dataloader = DataLoader(dataset, batch_size=self.args.batch_size, num_workers=1)
 
             pred_cam, pred_verts, pred_pose, pred_betas, \
             pred_joints3d, smpl_joints2d, norm_joints2d = [], [], [], [], [], [], []
@@ -359,7 +368,7 @@ class PARETester:
                 img_width=orig_width,
                 img_height=orig_height
             )
-            logger.info('Converting smpl keypoints 2d to original image coordinate')
+            # logger.info('Converting smpl keypoints 2d to original image coordinate')
 
             smpl_joints2d = convert_crop_coords_to_orig_img(
                 bbox=bboxes,

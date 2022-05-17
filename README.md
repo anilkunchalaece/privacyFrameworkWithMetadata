@@ -20,8 +20,21 @@
       - A single FC layer with i/9 2048 and o/p of no.of pedestrian attributes [ref](https://github.com/aajinjin/Strong_Baseline_of_Pedestrian_Attribute_Recognition/blob/4b1afcc76b4bbc116f6648f4fd9fbe18502390ee/models/base_block.py#L11)
 
 ## Notes
+- Command to run
+  `python pipeline.py --src_imgs /home/akunchala/Documents/z_Datasets/MOT16/test/MOT16-08/imgTest/`
+- Tracking BBOX conversion
+  - multipersontracker is using YoLo Detector SORT to track multiple pedestrians across frames and returns the bbox in YOLO format ([x_center, y_center, width, height]), In BYTETracker bboxes are extracted in PascalVOC format ([x_min, y_min, x_max, y_max]). To use the BYTETracker, I converted PascalVOC format to YOLO format. [Conversion Reference](https://github.com/mkocabas/multi-person-tracker/blob/2803ac529dc77328f0f1ff6cd9d36041e57e7288/multi_person_tracker/mpt.py#L133)
+    
 - Do we need to look for SOTA pedestrian attribute recognision?
   - I'm currently using transfer learning to make a model. May be for later stage, we can look into [Rethinking of PAR](https://github.com/valencebond/Rethinking_of_PAR)
 
 - Tracklets bbox image naming convention
   - F"t_{tIds[i]}-{os.path.basename(imgName)}"
+- 
+
+## Useful functions
+  1. 'checkTrackAttrs()'
+    - used to check the metadata for each tracklets
+      - Might be useful when using k-annomization
+  2. 'runByteTracker()'
+    - run the byteTracker for given images
