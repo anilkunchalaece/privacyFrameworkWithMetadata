@@ -392,7 +392,7 @@ class PARETester:
             pare_results[person_id] = output_dict
         return pare_results
 
-    def render_results(self, pare_results, image_folder, output_img_folder, output_path,
+    def render_results(self, pare_results, image_folder, output_img_folder,
                        orig_width, orig_height, num_frames):
         # ========= Render results as a single video ========= #
         renderer = Renderer(
@@ -430,7 +430,7 @@ class PARETester:
                 mesh_filename = None
 
                 if self.args.save_obj:
-                    mesh_folder = os.path.join(output_path, 'meshes', f'{person_id:04d}')
+                    mesh_folder = os.path.join(output_img_folder, 'meshes', f'{person_id:04d}')
                     os.makedirs(mesh_folder, exist_ok=True)
                     mesh_filename = os.path.join(mesh_folder, f'{frame_idx:06d}.obj')
 

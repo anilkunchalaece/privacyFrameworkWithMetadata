@@ -231,8 +231,7 @@ class Renderer:
             else:
                 mesh = trimesh.Trimesh(vertices, self.faces, vertex_colors=vertex_colors, process=False)
 
-        rot = trimesh.transformations.rotation_matrix(
-            np.radians(180), [1, 0, 0])
+        rot = trimesh.transformations.rotation_matrix(np.radians(180), [1, 0, 0])
         mesh.apply_transform(rot)
 
         # if camera_rotation is not None:

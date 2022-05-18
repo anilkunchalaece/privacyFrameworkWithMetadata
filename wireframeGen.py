@@ -14,6 +14,8 @@ import json
 from loguru import logger
 import pandas as pd
 import numpy as np
+import torch
+
 
 from multiprocessing import Pool
 
@@ -24,6 +26,12 @@ from lib.pare.utils.demo_utils import (
     video_to_images,
     images_to_video,
 )
+
+# from smplx import SMPL
+from lib.pare.models.head.smpl_head import SMPL,SMPLHead
+from lib.pare.core import config, constants
+from lib.pare.utils import geometry
+
 
 CFG = 'data/pare/checkpoints/pare_w_3dpw_config.yaml'
 CKPT = 'data/pare/checkpoints/pare_w_3dpw_checkpoint.ckpt'
@@ -36,7 +44,7 @@ class WireframeGen:
         self.out_img_height = 240 # y_scaled
         self.in_img_width = 1920 # x_org
         self.in_img_height = 1080 # y_org
-        self.draw_bbox_resized = True
+        self.draw_bbox_resized = False
 
         # Copied from PARE demo.py file
         # args.tracker_batch_size = 1
@@ -179,16 +187,79 @@ class WireframeGen:
         tester = PARETester(self.args)
         # pare_results = tester.run_on_image_folder(srcImgs, dets, outDir)
         pare_results = tester.run_on_video(dets, srcImgs, self.out_img_width, self.out_img_height)
-        tester.render_results(pare_results, srcImgs, outDir, outDir,
+    
+
+        # shape_list = np.zeros(shape=(len(pare_results.keys()),10))
+        # for idx, k in enumerate(pare_results.keys()) :
+        #     shape_list[idx,:] = np.average(pare_results[k]['betas'],axis=0)        
+        # avg_shape = np.average(shape_list,axis=0)
+
+        # normal rendering without changing the shape
+        outDirOrig = os.path.join(outDir,"orig")
+        os.makedirs(outDirOrig,exist_ok=True)
+
+        tester.render_results(pare_results, srcImgs, outDirOrig,
                                   self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
 
+        # render with unified shape
+        outDirUnifiedShape = os.path.join(outDir,"unifiedShape")
+        os.makedirs(outDirUnifiedShape,exist_ok=True)
+
+        pare_results_uniform_shape = self.customShape(pare_results)
+        tester.render_results(pare_results_uniform_shape, srcImgs, outDirUnifiedShape,
+                                  self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
+
+
+    def customShape(self,pare_results):
+        # Calculate average shape
+        shape_list = np.zeros(shape=(len(pare_results.keys()),10))
+        for idx, k in enumerate(pare_results.keys()) :
+            shape_list[idx,:] = np.average(pare_results[k]['betas'],axis=0)        
+        avg_shape = np.average(shape_list,axis=0)
+
+        # print(pare_results[1].keys())
+        # print(pare_results[k]['betas'])
+
+        # generate vertices with average shape
+        smpl = SMPLHead(config.SMPL_MODEL_DIR)
+        for idx, k in enumerate(pare_results.keys()):
+            # avg_shape_n = np.tile(avg_shape, (pare_results[k]['betas'].shape[0], 1))
+            # print(pare_results[k]['pose'].shape)
+            # in PARE pose represented rotation matix representation i.e 24x3x3
+            # we need to convert it axis angle representation
+            # ref - https://github.com/mkocabas/PARE/issues/4
+            # out = smpl(betas=avg_shape_n[1,:],body_pose=geometry.batch_rot2aa(torch.from_numpy(pare_results[k]['pose'][1,:,:,:])))
+            # print(out.verts.shape)
+
+            avg_shape_n = torch.from_numpy(np.tile(avg_shape, (pare_results[k]['betas'].shape[0], 1)).astype(np.float32))
+            body_pose = torch.from_numpy(pare_results[k]['pose'].astype(np.float32))
+
+            out = smpl(rotmat=body_pose, shape=avg_shape_n)
+
+            pare_results[k]['verts'] = out["smpl_vertices"]
+
+            # for i, f in enumerate(pare_results[k]['pose']) :
+            #     betas = torch.from_numpy(avg_shape.astype(np.float32)).reshape(1,-1)
+            #     body_pose = geometry.batch_rot2aa(torch.from_numpy(f.astype(np.float32)))[1:,:].reshape(1,-1)
+            #     global_orient = geometry.batch_rot2aa(torch.from_numpy(f.astype(np.float32)))[1,:].reshape(1,-1)
+            #     trans = torch.from_numpy(pare_results[k]['pred_cam'][i].astype(np.float32))
+            #     body_pose = torch.from_numpy(f.astype(np.float32)).reshape(1,24,3,3)
+
+            #     # out = smpl(betas=betas,body_pose=body_pose,global_orient=global_orient,trans=trans)
+            #     out = smpl(rotmat=body_pose, shape=betas)
+            #     # print(out)
+            #     pare_results[k]['verts'][i,:] = torch.squeeze(out["smpl_vertices"])
+        return pare_results
+        
+            
 
 
 if __name__ == "__main__" :
     args = None
     wg = WireframeGen(args)
-    dets = wg.loadDetections("tmp/personDetectionResults.json")
-    print(dets[1])
+    # dets = wg.loadDetections("tmp/personDetectionResults.json")
+    # print(dets[1])
+    wg.customShape()
             
 
 

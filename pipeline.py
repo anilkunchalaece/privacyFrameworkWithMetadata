@@ -12,6 +12,7 @@ import pandas as pd
 import cv2
 from multiprocessing import Pool
 import torch
+import re
 from sklearn import preprocessing
 
 from wireframeGen import WireframeGen
@@ -207,16 +208,15 @@ class MetadataGenerator:
         return attrs_out
 
     # used to check metadata for each tracker
-    def checkTrackAttrs(self):
+    def checkTrackAttrs(self,tId):
         metadataDir = os.path.join(args.tmp_dir,"metadata")
-        fList = os.listdir(metadataDir)
-        tId = 6
+        fList = sorted(os.listdir(metadataDir),key=lambda f: int(re.sub('\D', '', f)))
         for f in fList :
             with open(os.path.join(metadataDir,f)) as fp :
                 d = json.load(fp)
                 for md in d["metadata"] :
                     if md["tid"] == tId :
-                        print(",".join(md["attr"]))
+                        print(f, ",".join(md["attr"]))
     
     # used to generate wireframe for given wireframes
     def generateWireframes(self):
@@ -282,8 +282,8 @@ if __name__ == "__main__":
     parser.add_argument('--save_obj', action='store_true', help='save results as .obj files.')
 
     args = parser.parse_args()
-    main(args)
-    # mg = MetadataGenerator(args)
+    # main(args)
+    mg = MetadataGenerator(args)
     # mg.runByteTracker()
     # mg.generateMetadaForEachImg()
-    # mg.checkTrackAttrs()
+    mg.checkTrackAttrs(10)
