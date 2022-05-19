@@ -282,8 +282,8 @@ if __name__ == "__main__":
     parser.add_argument('--save_obj', action='store_true', help='save results as .obj files.')
 
     args = parser.parse_args()
-    # main(args)
-    mg = MetadataGenerator(args)
+    main(args)
+    # mg = MetadataGenerator(args)
     # mg.runByteTracker()
     # mg.generateMetadaForEachImg()
-    mg.checkTrackAttrs(10)
+    # mg.checkTrackAttrs(10)

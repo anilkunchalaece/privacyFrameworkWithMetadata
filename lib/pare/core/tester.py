@@ -23,6 +23,7 @@ import colorsys
 import numpy as np
 from tqdm import tqdm
 from loguru import logger
+import re
 from yolov3.yolo import YOLOv3
 # from multi_person_tracker import MPT
 from torch.utils.data import DataLoader
@@ -162,7 +163,7 @@ class PARETester:
             for x in os.listdir(image_folder)
             if x.endswith('.png') or x.endswith('.jpg') or x.endswith('.jpeg')
         ]
-        image_file_names = sorted(image_file_names)
+        image_file_names = sorted(image_file_names,key=lambda f: int(re.sub('\D', '', f)))
         # print(image_file_names)
         detections = [ _detections[d]['bbox'] for d in _detections.keys() ]
         output_img_folder = os.path.join(output_path,"wireframes")
@@ -411,7 +412,7 @@ class PARETester:
             os.path.join(image_folder, x)
             for x in os.listdir(image_folder)
             if x.endswith('.png') or x.endswith('.jpg')
-        ])
+        ],key=lambda f: int(re.sub('\D', '', f)))
 
         for frame_idx in tqdm(range(len(image_file_names))):
             img_fname = image_file_names[frame_idx]
