@@ -32,7 +32,7 @@ class MetadataGenerator:
     def getPersonDetections(self):
         objDets = ObjectDetectorClass()
         if self.args.det_file == None :
-            detFile = objDets.getObjects(args.src_imgs, args.tmp_dir)
+            detFile = objDets.saveMasksAndGetObjects(args.src_imgs, args.tmp_dir)
         else :
             detFile = self.args.det_file
         personDets = getPersonsFromPkl(detFile)
@@ -53,7 +53,7 @@ class MetadataGenerator:
             online_targets = tracker.update(det["detections"], dets["img_shape"], dets["img_shape"])
             
             srcImg = cv2.imread(det['img_name']) if args.draw_bbox == True else None
-            # print(online_targets)
+
             for t in online_targets:
                 tlwh = t.tlwh
                 tlbr = [ int(x) for x in t.tlbr.tolist()]
@@ -236,10 +236,12 @@ def renameSrcDir(srcDir) :
             shutil.move(srcName,desName)    
 
 def main(args):
+    torch.cuda.empty_cache()
     renameSrcDir(args.src_imgs)
     mg = MetadataGenerator(args)
     mg.generateMetadaForEachImg()
     mg.generateWireframes()
+    torch.cuda.empty_cache()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

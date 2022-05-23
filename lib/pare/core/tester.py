@@ -394,7 +394,7 @@ class PARETester:
         return pare_results
 
     def render_results(self, pare_results, image_folder, output_img_folder,
-                       orig_width, orig_height, num_frames):
+                       orig_width, orig_height, num_frames, use_single_mesh_color=True):
         # ========= Render results as a single video ========= #
         renderer = Renderer(
             resolution=(orig_width, orig_height),
@@ -407,7 +407,7 @@ class PARETester:
         # prepare results for rendering
         frame_results = prepare_rendering_results(pare_results, num_frames)
         mesh_color = {k: colorsys.hsv_to_rgb(np.random.rand(), 0.5, 1.0) for k in pare_results.keys()}
-
+        
         image_file_names = sorted([
             os.path.join(image_folder, x)
             for x in os.listdir(image_folder)
@@ -426,7 +426,10 @@ class PARETester:
                 frame_cam = person_data['cam']
                 frame_kp = person_data['joints2d']
 
-                mc = mesh_color[person_id]
+                if use_single_mesh_color :
+                    mc = (0.5, 0.9108974590556427, 1.0)
+                else :
+                    mc = mesh_color[person_id]
 
                 mesh_filename = None
 

@@ -44,7 +44,7 @@ class WireframeGen:
         self.out_img_height = 240 # y_scaled
         self.in_img_width = 1920 # x_org
         self.in_img_height = 1080 # y_org
-        self.draw_bbox_resized = False
+        self.draw_bbox_resized = True
 
         # Copied from PARE demo.py file
         # args.tracker_batch_size = 1
@@ -80,9 +80,11 @@ class WireframeGen:
                     # df_t["iNo"] = df.loc[:,"imageName"].apply(lambda x: int(x.split('.')[0]))
                     df_t = df_t.sort_values(by=["iNo"])
                     # print(df_t["bbox"].to_numpy())
-                    # print(self.resizeBbox(df_t["bbox"].to_list()))
+                    rbbox = self.resizeBbox(df_t["bbox"].to_list())
+
                     dets[t-1] = {
-                            "bbox" : self.resizeBbox(df_t["bbox"].to_list()),
+                            "bbox" : rbbox["scaled_yolo"],
+                            "bbox_pascal" : rbbox["scaled_pascal"],
                             "frames" : df_t["iNo"].to_list()
                         }               
                 
@@ -99,9 +101,9 @@ class WireframeGen:
         # in_img_width = 1920 # x_org
         # in_img_height = 1080 # y_org
         
-        d=[] # scaled bboxes
-        scaled_bboxes = []
-        
+        scaled_bboxes_yolo = []
+        scaled_bboxes_pascal = []
+
         x_scale = self.out_img_width/self.in_img_width
         y_scale = self.out_img_height/self.in_img_height
 
@@ -110,11 +112,21 @@ class WireframeGen:
             bbox[1] = bbox[1]*x_scale 
             bbox[2] = bbox[2]*y_scale
             bbox[3] = bbox[3]*y_scale
+
+            # converting the Pascal BBOX to YoLo BBOX
+            # Ref - https://github.com/mkocabas/multi-person-tracker/blob/2803ac529dc77328f0f1ff6cd9d36041e57e7288/multi_person_tracker/mpt.py#L133
+            # Since the multiperson tracker used in the VIBE and PARE depends on the YoLo bboxes
             w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
             c_x, c_y = bbox[0] + w / 2, bbox[1] + h / 2
             w = h = np.where(w / h > 1, w, h)
-            scaled_bboxes.append([c_x, c_y, w, h])
-        return np.array(scaled_bboxes)
+            
+            scaled_bboxes_yolo.append([c_x, c_y, w, h])
+            scaled_bboxes_pascal.append(bbox)
+
+        return {
+            "scaled_yolo" : np.array(scaled_bboxes_yolo),
+            "scaled_pascal" : np.array(scaled_bboxes_pascal)
+        }
 
     def resizeImgsInDir(self,imagesDir=None):
         if imagesDir != None :
@@ -162,6 +174,7 @@ class WireframeGen:
         # print(dets)
         # sys.exit()
         # draw bbox for resized imgs just to check
+        # use pascal bboxes for drawing bboxes - why ? I'm lazy :)
         if self.draw_bbox_resized == True :
             bboxDir = os.path.join(self.args.tmp_dir,"bbox")
             os.makedirs(bboxDir,exist_ok=True)
@@ -169,7 +182,7 @@ class WireframeGen:
             for d in dets.keys() :
                 for idx, f in enumerate(dets[d]["frames"]) : 
                     f = F"{f}.{os.listdir(srcImgs)[0].split('.')[-1]}"
-                    tlbr = [int(b) for b in dets[d]["bbox"][idx]]
+                    tlbr = [int(b) for b in dets[d]["bbox_pascal"][idx]]
                     # print(tlbr)
                     if os.path.isfile(os.path.join(bboxDir,f)) :
                         srcImg = cv2.imread(os.path.join(bboxDir,f))
@@ -216,6 +229,8 @@ class WireframeGen:
         for idx, k in enumerate(pare_results.keys()) :
             shape_list[idx,:] = np.average(pare_results[k]['betas'],axis=0)        
         avg_shape = np.average(shape_list,axis=0)
+
+        avg_shape = ((np.random.rand(1,10) - 0.5)*0.06) # take random shape instead of average shape
 
         # print(pare_results[1].keys())
         # print(pare_results[k]['betas'])
