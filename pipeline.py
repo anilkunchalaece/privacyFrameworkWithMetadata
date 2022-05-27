@@ -33,7 +33,7 @@ class MetadataGenerator:
     def getPersonDetections(self,mars=False):
         objDets = ObjectDetectorClass()
         if self.args.det_file == None :
-            if mars == True :
+            if mars == False :
                 detFile = objDets.saveMasksAndGetObjects(args.src_imgs, args.tmp_dir)
             else :
                 detFile = objDets.getObjects(args.src_imgs, args.tmp_dir)

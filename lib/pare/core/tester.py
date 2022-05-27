@@ -43,6 +43,8 @@ from ..utils.demo_utils import (
 )
 from ..utils.vibe_image_utils import get_single_image_crop_demo
 
+from lib.pare.models.head.smpl_head import SMPL,SMPLHead
+from lib.pare.core import config, constants
 
 MIN_NUM_FRAMES = 0
 
@@ -157,7 +159,7 @@ class PARETester:
     #     return bboxes
 
     @torch.no_grad()
-    def run_on_image_folder(self, image_folder, _detections, output_path, bbox_scale=1.0):
+    def run_on_image_folder(self, image_folder, _detections, output_path, bbox_scale=1.0,use_single_mesh_color=True, use_common_shape=True):
         image_file_names = [
             os.path.join(image_folder, x)
             for x in os.listdir(image_folder)
@@ -167,10 +169,14 @@ class PARETester:
 
         # detections = [ _detections[d]['bbox'] for d in _detections.keys() ]
         output_img_folder = os.path.join(output_path,"wireframes")
+        output_img_folder_common_shape = os.path.join(output_path,"wireframes_common_shape")
 
         os.makedirs(os.path.join(output_path,"pare_results"),exist_ok=True)
         os.makedirs(output_img_folder,exist_ok=True)
+        os.makedirs(output_img_folder_common_shape,exist_ok=True)
         # print(_detections.keys())
+
+        smpl = SMPLHead(config.SMPL_MODEL_DIR)
 
         for img_idx, img_fname in enumerate(image_file_names):
             dets = _detections[os.path.basename(img_fname)]["bbox"]
@@ -198,6 +204,7 @@ class PARETester:
                 inp_images[det_idx] = norm_img.float().to(self.device)
             try:
                 output = self.model(inp_images)
+                # logger.info(output.keys())
             except Exception as e:
                 import IPython; IPython.embed(); exit()
 
@@ -247,7 +254,10 @@ class PARETester:
                     cam = output['orig_cam'][idx]
                     keypoints = output['smpl_joints2d'][idx]
 
-                    mc = colorsys.hsv_to_rgb(np.random.rand(), 0.5, 1.0)
+                    if use_single_mesh_color :
+                        mc = (0.5, 0.9108974590556427, 1.0)
+                    else :
+                        mc = colorsys.hsv_to_rgb(np.random.rand(), 0.5, 1.0)
 
                     mesh_filename = None
 
@@ -264,6 +274,22 @@ class PARETester:
                         color=mc,
                         mesh_filename=mesh_filename,
                     )
+
+                    if use_common_shape == True :
+                        # logger.info(F"output keys {output.keys()}")
+                        avg_shape_n = torch.from_numpy(np.array([[0.00495731,-0.00761945,-0.01329031,-0.01045073,0.02202598,0.0265389 ,-0.01466284,-0.01419266,-0.02254305,-0.010054 ]]).astype(np.float32))
+                        pose = torch.from_numpy(output['pred_pose'][idx].astype(np.float32)).reshape(1,24,3,3)
+                        out = smpl(rotmat=pose, shape=avg_shape_n)
+                        verts = out["smpl_vertices"].squeeze(dim=0)
+
+                        img_common_shape = renderer.render(
+                                            img,
+                                            verts,
+                                            cam=cam,
+                                            color=mc,
+                                            mesh_filename=mesh_filename,
+                                    )
+                        cv2.imwrite(os.path.join(output_img_folder_common_shape, os.path.basename(img_fname)), img)
 
                 # print(os.path.join(output_img_folder, os.path.basename(img_fname)))   
                 cv2.imwrite(os.path.join(output_img_folder, os.path.basename(img_fname)), img)

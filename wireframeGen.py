@@ -335,8 +335,8 @@ class WireframeGen:
             shape_list[idx,:] = np.average(pare_results[k]['betas'],axis=0)        
         avg_shape = np.average(shape_list,axis=0)
 
-        avg_shape = ((np.random.rand(1,10) - 0.5)*0.06) # take random shape instead of average shape
-
+        # avg_shape = ((np.random.rand(1,10) - 0.5)*0.06) # take random shape instead of average shape
+        avg_shape = np.array([[0.00495731,-0.00761945,-0.01329031,-0.01045073,0.02202598,0.0265389 ,-0.01466284,-0.01419266,-0.02254305,-0.010054 ]])
         # print(pare_results[1].keys())
         # print(pare_results[k]['betas'])
 
@@ -353,7 +353,7 @@ class WireframeGen:
 
             avg_shape_n = torch.from_numpy(np.tile(avg_shape, (pare_results[k]['betas'].shape[0], 1)).astype(np.float32))
             body_pose = torch.from_numpy(pare_results[k]['pose'].astype(np.float32))
-
+            # logger.info(body_pose.shape)
             out = smpl(rotmat=body_pose, shape=avg_shape_n)
 
             pare_results[k]['verts'] = out["smpl_vertices"]

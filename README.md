@@ -44,7 +44,11 @@
 
 - Tracklets bbox image naming convention
   - F"t_{tIds[i]}-{os.path.basename(imgName)}"
-- 
+- Color used for meshes (Generated a random color and using it across it)
+  - `mc = (0.5, 0.9108974590556427, 1.0)`
+- Common shape used for meshes
+  - `avg_shape = np.array([[0.00495731,-0.00761945,-0.01329031,-0.01045073,0.02202598,0.0265389 ,-0.01466284,-0.01419266,-0.02254305,-0.010054 ]])`
+
 
 ## Useful functions
   1. 'checkTrackAttrs()'
