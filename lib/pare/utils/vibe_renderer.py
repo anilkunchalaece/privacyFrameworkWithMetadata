@@ -81,7 +81,7 @@ class Renderer:
         light_pose[:3, 3] = [1, 1, 2]
         self.scene.add(light, pose=light_pose)
 
-    def render(self, img, verts, cam, angle=None, axis=None, mesh_filename=None, color=[1.0, 1.0, 0.9]):
+    def render(self, img, verts, cam, angle=None, axis=None, mesh_filename=None, color=[1.0, 1.0, 0.9],empty_background=False):
 
         mesh = trimesh.Trimesh(vertices=verts, faces=self.faces, process=False)
 
@@ -123,7 +123,12 @@ class Renderer:
 
         rgb, _ = self.renderer.render(self.scene, flags=render_flags)
         valid_mask = (rgb[:, :, -1] > 0)[:, :, np.newaxis]
-        output_img = rgb[:, :, :-1] * valid_mask + (1 - valid_mask) * img
+
+        if empty_background == False :
+            output_img = rgb[:, :, :-1] * valid_mask + (1 - valid_mask) * img
+        else :
+            output_img = rgb[:, :, :-1] * valid_mask + (1 - valid_mask)
+        
         image = output_img.astype(np.uint8)
 
         self.scene.remove_node(mesh_node)

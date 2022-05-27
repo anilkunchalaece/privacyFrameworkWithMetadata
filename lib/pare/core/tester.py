@@ -169,11 +169,15 @@ class PARETester:
 
         # detections = [ _detections[d]['bbox'] for d in _detections.keys() ]
         output_img_folder = os.path.join(output_path,"wireframes")
+        output_img_folder_empty_background = os.path.join(output_path,"wireframes_empty_background")
         output_img_folder_common_shape = os.path.join(output_path,"wireframes_common_shape")
+        output_img_folder_common_shape_empty_background = os.path.join(output_path,"wireframes_common_shape_empty_background")
 
         os.makedirs(os.path.join(output_path,"pare_results"),exist_ok=True)
         os.makedirs(output_img_folder,exist_ok=True)
         os.makedirs(output_img_folder_common_shape,exist_ok=True)
+        os.makedirs(output_img_folder_empty_background,exist_ok=True)
+        os.makedirs(output_img_folder_common_shape_empty_background,exist_ok=True)
         # print(_detections.keys())
 
         smpl = SMPLHead(config.SMPL_MODEL_DIR)
@@ -275,6 +279,21 @@ class PARETester:
                         mesh_filename=mesh_filename,
                     )
 
+                    # print(os.path.join(output_img_folder, os.path.basename(img_fname)))   
+                    cv2.imwrite(os.path.join(output_img_folder, os.path.basename(img_fname)), img)
+
+                    img_empty_background = renderer.render(
+                        img,
+                        verts,
+                        cam=cam,
+                        color=mc,
+                        mesh_filename=mesh_filename,
+                        empty_background = True
+                    )
+
+                    # print(os.path.join(output_img_folder, os.path.basename(img_fname)))   
+                    cv2.imwrite(os.path.join(output_img_folder_empty_background, os.path.basename(img_fname)), img_empty_background)
+
                     if use_common_shape == True :
                         # logger.info(F"output keys {output.keys()}")
                         avg_shape_n = torch.from_numpy(np.array([[0.00495731,-0.00761945,-0.01329031,-0.01045073,0.02202598,0.0265389 ,-0.01466284,-0.01419266,-0.02254305,-0.010054 ]]).astype(np.float32))
@@ -289,10 +308,17 @@ class PARETester:
                                             color=mc,
                                             mesh_filename=mesh_filename,
                                     )
-                        cv2.imwrite(os.path.join(output_img_folder_common_shape, os.path.basename(img_fname)), img)
+                        cv2.imwrite(os.path.join(output_img_folder_common_shape, os.path.basename(img_fname)), img_common_shape)
 
-                # print(os.path.join(output_img_folder, os.path.basename(img_fname)))   
-                cv2.imwrite(os.path.join(output_img_folder, os.path.basename(img_fname)), img)
+                        img_common_shape_empty_background = renderer.render(
+                                            img,
+                                            verts,
+                                            cam=cam,
+                                            color=mc,
+                                            mesh_filename=mesh_filename,
+                                            empty_background = True
+                                    )
+                        cv2.imwrite(os.path.join(output_img_folder_common_shape_empty_background, os.path.basename(img_fname)), img_common_shape_empty_background)
 
                 if self.args.display:
                     cv2.imshow('Video', img)
