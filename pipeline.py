@@ -5,6 +5,7 @@ from lib.utils.preprocessRAPv2 import getAttrOfIntrest
 
 import attrTrain
 
+import os
 import argparse
 import shutil
 import json
@@ -29,10 +30,13 @@ class MetadataGenerator:
         os.makedirs(args.tmp_dir,exist_ok=True)
         self.bboxTracketRef = []
 
-    def getPersonDetections(self):
+    def getPersonDetections(self,mars=False):
         objDets = ObjectDetectorClass()
         if self.args.det_file == None :
-            detFile = objDets.saveMasksAndGetObjects(args.src_imgs, args.tmp_dir)
+            if mars == True :
+                detFile = objDets.saveMasksAndGetObjects(args.src_imgs, args.tmp_dir)
+            else :
+                detFile = objDets.getObjects(args.src_imgs, args.tmp_dir)
         else :
             detFile = self.args.det_file
         personDets = getPersonsFromPkl(detFile)
@@ -217,11 +221,15 @@ class MetadataGenerator:
                 for md in d["metadata"] :
                     if md["tid"] == tId :
                         print(f, ",".join(md["attr"]))
-    
-    # used to generate wireframe for given wireframes
-    def generateWireframes(self):
+
+
+    # used to generate wireframe for given images using PARE - https://github.com/mkocabas/PARE
+    def generateWireframes(self,mars=False):
         wg = WireframeGen(self.args)
-        wg.generateWireframes(self.args.src_imgs)
+        if mars == False :
+            wg.generateWireframes(self.args.src_imgs)
+        else :
+            wg.generateWireframesForMARS(self.args.src_imgs)
     
 def renameSrcDir(srcDir) :
     # Check fileNames -> files should start with 0, if not rename them
@@ -237,10 +245,19 @@ def renameSrcDir(srcDir) :
 
 def main(args):
     torch.cuda.empty_cache()
-    renameSrcDir(args.src_imgs)
+    # renameSrcDir(args.src_imgs)
     mg = MetadataGenerator(args)
     mg.generateMetadaForEachImg()
     mg.generateWireframes()
+    torch.cuda.empty_cache()
+
+def main_mars(args):
+    torch.cuda.empty_cache()
+    # renameSrcDir(args.src_imgs)
+    mg = MetadataGenerator(args)
+    # mg.generateMetadaForEachImg()
+    mg.getPersonDetections()
+    mg.generateWireframes(mars=True)
     torch.cuda.empty_cache()
 
 if __name__ == "__main__":
@@ -283,8 +300,16 @@ if __name__ == "__main__":
     parser.add_argument('--draw_keypoints', action='store_true', help='draw 2d keypoints on rendered image.')
     parser.add_argument('--save_obj', action='store_true', help='save results as .obj files.')
 
+    parser.add_argument("--func",required=True, help="use `mars` if generating for MARS else use `mot` ")
+
     args = parser.parse_args()
-    main(args)
+
+    if args.func == "mot" :
+        main(args)
+    elif args.func == "mars":
+        main_mars(args)
+    else :
+        print("please use func argument either with mot or mars")
     # mg = MetadataGenerator(args)
     # mg.runByteTracker()
     # mg.generateMetadaForEachImg()

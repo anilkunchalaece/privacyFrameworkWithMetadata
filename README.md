@@ -6,6 +6,20 @@
 ## Progress 
 - Integrated [ByteTrack](https://github.com/ifzhang/ByteTrack) for tracking pedestrians across the frames
 - Using Faster-rcnn for object detection and seperating the all the pedestrians from it
+- Interated PARE into existing pipeline
+- Able extract Metadata for each img
+- Integrated STTN for background extraction
+
+## Feature Fusion using Siamese Network
+- Need to extract SMPL images for the MARS dataset
+- Build & Train Siamese Network using MARS dataset SMPL models and Metadata tags
+### Issues
+- Background
+  - Rendering the SMPL mesh on top of the existing image
+    - Siamese Network might pickup existing overlapping information?
+  - Rendering the SMPL on empty backgroung ?
+    - Restricting the model to learn background information ?
+  
 
 
 ## TODO

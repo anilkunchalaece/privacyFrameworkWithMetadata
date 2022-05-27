@@ -164,14 +164,17 @@ class PARETester:
             if x.endswith('.png') or x.endswith('.jpg') or x.endswith('.jpeg')
         ]
         image_file_names = sorted(image_file_names,key=lambda f: int(re.sub('\D', '', f)))
-        # print(image_file_names)
-        detections = [ _detections[d]['bbox'] for d in _detections.keys() ]
-        output_img_folder = os.path.join(output_path,"wireframes")
-        
-        for img_idx, img_fname in enumerate(image_file_names):
-            dets = detections[img_idx]
 
-            print(dets)
+        # detections = [ _detections[d]['bbox'] for d in _detections.keys() ]
+        output_img_folder = os.path.join(output_path,"wireframes")
+
+        os.makedirs(os.path.join(output_path,"pare_results"),exist_ok=True)
+        os.makedirs(output_img_folder,exist_ok=True)
+        # print(_detections.keys())
+
+        for img_idx, img_fname in enumerate(image_file_names):
+            dets = _detections[os.path.basename(img_fname)]["bbox"]
+            # logger.info(dets)
 
             if len(dets) < 1:
                 continue
@@ -262,24 +265,7 @@ class PARETester:
                         mesh_filename=mesh_filename,
                     )
 
-                    if self.args.draw_keypoints:
-                        for idx, pt in enumerate(keypoints):
-                            cv2.circle(img, (pt[0], pt[1]), 4, (0, 255, 0), -1)
-
-                    if self.args.sideview:
-                        side_img = renderer.render(
-                            side_img,
-                            verts,
-                            cam=cam,
-                            color=mc,
-                            angle=270,
-                            axis=[0, 1, 0],
-                        )
-
-                if self.args.sideview:
-                    img = np.concatenate([img, side_img], axis=1)
-
-                print(os.path.join(output_img_folder, os.path.basename(img_fname)))   
+                # print(os.path.join(output_img_folder, os.path.basename(img_fname)))   
                 cv2.imwrite(os.path.join(output_img_folder, os.path.basename(img_fname)), img)
 
                 if self.args.display:
@@ -369,6 +355,8 @@ class PARETester:
                 img_width=orig_width,
                 img_height=orig_height
             )
+
+            # print(pred_cam, orig_cam)
             # logger.info('Converting smpl keypoints 2d to original image coordinate')
 
             smpl_joints2d = convert_crop_coords_to_orig_img(
@@ -437,7 +425,7 @@ class PARETester:
                     mesh_folder = os.path.join(output_img_folder, 'meshes', f'{person_id:04d}')
                     os.makedirs(mesh_folder, exist_ok=True)
                     mesh_filename = os.path.join(mesh_folder, f'{frame_idx:06d}.obj')
-
+                # print(frame_verts.shape, frame_cam.shape)
                 img = renderer.render(
                     img,
                     frame_verts,

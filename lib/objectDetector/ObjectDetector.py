@@ -14,6 +14,9 @@ try :
 except :
     pass
 
+from loguru import logger
+
+
 class ObjectDetectorClass:
 
     def __init__(self):
@@ -58,7 +61,6 @@ class ObjectDetectorClass:
 
         outFileName = os.path.join(dirToSave,"objectDetection.pkl")
 
-        # print(len(allDetections["boxes"]))
         with open(outFileName,'wb') as fw:
             pickle.dump(allDetections,fw)
         
@@ -100,6 +102,7 @@ class ObjectDetectorClass:
 
                     #get masks based on labelIdx
                     masks = det["masks"][labelIdxs].detach().cpu().numpy().squeeze()
+                    
                     masks = (masks >= 0.5)
                     #create a tensor with mask and convert it to bool -> suitable for draw_segementation_masks
                     masks = torch.from_numpy(masks).type(torch.bool)
@@ -109,14 +112,16 @@ class ObjectDetectorClass:
 
                     maskOutFilePath = os.path.join(dirToSaveMasks,os.path.basename(img_names[i]))
                     backgroundImg = torch.zeros(data[0].shape,dtype=torch.uint8)
-                    maskImg = draw_segmentation_masks(backgroundImg, masks,colors=[(255,255,255)]*200).numpy().transpose(1,2,0)
-                    cv2.imwrite(maskOutFilePath, cv2.cvtColor(maskImg, cv2.COLOR_RGB2BGR) )
+
+                    if labelIdxs.size != 0 :
+                        # logger.info(F" backimg shape {backgroundImg.shape} , masks shape {masks.shape}, img {img_names[i]}")
+                        maskImg = draw_segmentation_masks(backgroundImg, masks,colors=[(255,255,255)]*200).numpy().transpose(1,2,0)
+                        cv2.imwrite(maskOutFilePath, cv2.cvtColor(maskImg, cv2.COLOR_RGB2BGR) )
 
         allDetections["img_shape"] = data[0].shape
 
         outFileName = os.path.join(dirToSave,"objectDetection.pkl")
 
-        # print(len(allDetections["boxes"]))
         with open(outFileName,'wb') as fw:
             pickle.dump(allDetections,fw)
         
@@ -132,6 +137,7 @@ if __name__ == "__main__":
     sys.path.append("/home/akunchala/Documents/PhDStuff/privacyFrameworkWithMetadata")
     from lib.datasets.objectDataset import ObjectDataset    
     srcDir = "/home/akunchala/Documents/PhDStuff/PrivacyFramework/tmp_icSense_v2_0_left/src/orig_images_scaled"
-    dirToSave = "/home/akunchala/Documents/PhDStuff/privacyFrameworkWithMetadata/tmp"
+    srcDir = "/home/akunchala/Documents/z_Datasets/MARS_Dataset/bbox_train/0379/"
+    dirToSave = "/home/akunchala/Documents/PhDStuff/privacyFrameworkWithMetadata/objectDet"
     od = ObjectDetectorClass()
     od.getObjects(srcDir,dirToSave)

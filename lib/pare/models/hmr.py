@@ -74,7 +74,7 @@ class HMR(nn.Module):
             )
 
         if pretrained is not None:
-            if pretrained == 'data/model_checkpoint.pt':
+            if pretrained == 'data/pare/checkpoints/spin_model_checkpoint.pth.tar':
                 self.load_pretrained_spin(pretrained)
             else:
                 self.load_pretrained(pretrained)
@@ -134,3 +134,8 @@ class HMR(nn.Module):
         state_dict = torch.load(file)['model']
         self.backbone.load_state_dict(state_dict, strict=False)
         self.head.load_state_dict(state_dict, strict=False)
+
+
+if __name__ == "__main__":
+    h = HMR()
+    print(h)

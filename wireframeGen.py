@@ -15,7 +15,8 @@ from loguru import logger
 import pandas as pd
 import numpy as np
 import torch
-
+import re
+import pickle
 
 from multiprocessing import Pool
 
@@ -58,37 +59,76 @@ class WireframeGen:
         # num_frames = len(os.listdir(input_image_folder))
         # self.tester = PARETester(self.args)        
 
-    def loadDetections(self,fileName):
+    def loadDetections(self,fileName,mars=False):
         # load and format detections as per PARE requirements
         # bbox detections are already generated when generating the metadata
         # here we use those bbox info and resize it 432x240 (Width x Height)
         try :
-            with open(fileName) as fd :
-                data = json.load(fd)
-                df = pd.DataFrame(data["tracklets"])
-                df["iNo"] = df.loc[:,"imageName"].apply(lambda x: int(x.split('.')[0]))
-                df = df.loc[df["score"] >= 0.90]
-                img_shape = data["image_shape"]
-                
-                dets = {}
+            dets = {}
+            if mars == False : # if you are not running for MARS dataset
 
-                # get bbox and frames per tid
-                tids = df["tid"].unique()
-                for t in tids :
-                    df_t = df.loc[df["tid"]==t]
-                    # df_t = df_t.loc[df_t["score"] >= 0.90]
-                    # df_t["iNo"] = df.loc[:,"imageName"].apply(lambda x: int(x.split('.')[0]))
-                    df_t = df_t.sort_values(by=["iNo"])
-                    # print(df_t["bbox"].to_numpy())
-                    rbbox = self.resizeBbox(df_t["bbox"].to_list())
+                with open(fileName) as fd :
+                    data = json.load(fd)
+                    df = pd.DataFrame(data["tracklets"])
+                    # df["iNo"] = df.loc[:,"imageName"].apply(lambda x: int(x.split('.')[0]))
+                    df["iNo"] = df.loc[:,"imageName"].apply(lambda f: int(re.sub('\D', '', f)))
+                    df = df.loc[df["score"] >= 0.90]
+                    img_shape = data["image_shape"]
+                    
+                    
 
-                    dets[t-1] = {
+                    # get bbox and frames per tid
+                    tids = df["tid"].unique()
+                    for t in tids :
+                        df_t = df.loc[df["tid"]==t]
+                        # df_t = df_t.loc[df_t["score"] >= 0.90]
+                        # df_t["iNo"] = df.loc[:,"imageName"].apply(lambda x: int(x.split('.')[0]))
+                        df_t = df_t.sort_values(by=["iNo"])
+                        # print(df_t["bbox"].to_numpy())
+                        rbbox = self.resizeBbox(df_t["bbox"].to_list())
+
+                        dets[t-1] = {
+                                "bbox" : rbbox["scaled_yolo"],
+                                "bbox_pascal" : rbbox["scaled_pascal"],
+                                "frames" : df_t["iNo"].to_list(),
+                                "frameNames" : df_t["imageName"].to_list()
+                            }
+            else : # if you are using dets for MARS dataset , get the detections by image wise
+                # imgs = df["imageName"].unique()
+
+                # for img in imgs :
+                #     df_t = df.loc[df["imageName"]==img]
+                    
+                #     rbbox = self.resizeBbox(df_t["bbox"].to_list())
+                #     dets[img] = {
+                #             "bbox" : rbbox["scaled_yolo"],
+                #             "bbox_pascal" : rbbox["scaled_pascal"],
+                #             "frames" : df_t["iNo"].to_list(),
+                #             "frameNames" : df_t["imageName"].to_list()
+                #     }
+                with open(os.path.join(self.args.tmp_dir,"objectDetection.pkl"),'rb') as fd:
+                    data = pickle.load(fd)
+
+                for i_d, img in enumerate(data["img_names"]) :
+                    try :
+                        # logger.info(img)
+                        labelIdxs = np.argwhere(np.array(data["labels"][i_d]) == 1).squeeze()
+                        # print(np.argmax(np.array(data["scores"][i_d])[labelIdxs]))
+                        bboxes = np.array(data["boxes"][i_d])[np.argmax(np.array(data["scores"][i_d])[labelIdxs])]
+                        # scores = np.array(data["scores"][i_d])[labelIdxs].tolist()
+                        # logger.info(bboxes)
+                        if bboxes.ndim == 1 :
+                            bboxes = [bboxes]
+                    except :
+                        bboxes = list([]) # empty list of lists
+                    rbbox = self.resizeBbox(bboxes)
+                    dets[os.path.basename(img)] = {
                             "bbox" : rbbox["scaled_yolo"],
                             "bbox_pascal" : rbbox["scaled_pascal"],
-                            "frames" : df_t["iNo"].to_list()
-                        }               
-                
-                return dets
+                            "frameNames" : img
+                    }                        
+
+            return dets
 
         except Exception as e:
             print(F"unable to load file, failed with exception {e}")
@@ -147,6 +187,19 @@ class WireframeGen:
         # print(outImgPath)
         cv2.imwrite(outImgPath,resizedImg)
 
+    # generate background images using STTN - https://github.com/researchmm/STTN 
+    def generateBackgroundImgs(self,srcImgsDir=None):
+        backgroundImgsDir = os.path.join(self.args.tmp_dir,"background")
+        os.makedirs(backgroundImgsDir,exist_ok=True)
+
+        maskImgDir = os.path.join(self.args.tmp_dir,"masks")
+        ckptFile = os.path.join("data","sttn_data","sttn.pth")
+        if srcImgsDir == None : 
+            srcImgsDir = os.path.join(self.args.tmp_dir,"src","orig_images_scaled")
+        cmd = ["python","runSttn.py","--mask",maskImgDir,"--ckpt",ckptFile,"--image_dir",srcImgsDir,"--output_dir",backgroundImgsDir]
+        cmd = " ".join(cmd)
+        os.system(cmd)
+
 
     # use PARE to generate wireframes
     def generateWireframes(self,srcImgs, personDetectionFile=None,outDir=None):
@@ -170,8 +223,12 @@ class WireframeGen:
             self.resizeImgsInDir(srcImgs)
             srcImgs = dirToStoreResizedImgs
 
+        # generate background images
+        logger.info(F"Generating the background images fro {srcImgs}")
+        self.generateBackgroundImgs(srcImgs)
+
         dets = self.loadDetections(personDetectionFile)
-        # print(dets)
+
         # sys.exit()
         # draw bbox for resized imgs just to check
         # use pascal bboxes for drawing bboxes - why ? I'm lazy :)
@@ -221,6 +278,54 @@ class WireframeGen:
         pare_results_uniform_shape = self.customShape(pare_results)
         tester.render_results(pare_results_uniform_shape, srcImgs, outDirUnifiedShape,
                                   self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
+
+    # use PARE to generate wireframes
+    def generateWireframesForMARS(self,srcImgs, personDetectionFile=None,outDir=None):
+        self.out_img_height = 120
+        self.out_img_width = 60
+        self.in_img_width = 128 # x_org
+        self.in_img_height = 256 # y_org
+
+        if outDir == None :
+            # Create outDir
+            outDir = os.path.join(self.args.tmp_dir,"pred")
+            os.makedirs(outDir,exist_ok=True)
+        
+        if personDetectionFile == None :
+            personDetectionFile = os.path.join(self.args.tmp_dir,"personDetectionResults.json")
+
+        # check image size in srcImgs
+        # if size does not match resize all the images 
+        img = cv2.imread(os.path.join(srcImgs,os.listdir(srcImgs)[0]))
+        height, width , _ = img.shape
+
+        if (height != self.out_img_height or width == self.out_img_width) :
+            dirToStoreResizedImgs = os.path.join(self.args.tmp_dir,"src","orig_images_scaled")
+            os.makedirs(dirToStoreResizedImgs,exist_ok=True)
+            self.resizeImgsInDir(srcImgs)
+            srcImgs = dirToStoreResizedImgs
+
+
+        dets = self.loadDetections(personDetectionFile,mars=True)                    
+        tester = PARETester(self.args)
+        pare_results = tester.run_on_image_folder(srcImgs, dets, outDir)
+        # pare_results = tester.run_on_video(dets, srcImgs, self.out_img_width, self.out_img_height)
+    
+
+        # normal rendering without changing the shape
+        # outDirOrig = os.path.join(outDir,"orig")
+        # os.makedirs(outDirOrig,exist_ok=True)
+
+        # tester.render_results(pare_results, srcImgs, outDirOrig,
+        #                           self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
+
+        # # render with unified shape
+        # outDirUnifiedShape = os.path.join(outDir,"unifiedShape")
+        # os.makedirs(outDirUnifiedShape,exist_ok=True)
+
+        # pare_results_uniform_shape = self.customShape(pare_results)
+        # tester.render_results(pare_results_uniform_shape, srcImgs, outDirUnifiedShape,
+        #                           self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
 
 
     def customShape(self,pare_results):
