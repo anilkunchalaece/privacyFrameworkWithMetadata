@@ -38,8 +38,9 @@ class Inference(Dataset):
         self.image_file_names = [ os.path.join(image_folder,F"{y}") for y in sorted([os.path.basename(x) for x in self.image_file_names],key=lambda f: int(re.sub('\D', '', f)))]
         # self.image_file_names = [x for x in sorted(self.image_file_names,key=lambda f: int(re.sub('\D', '', f)))]
         
-        self.image_file_names = np.array(self.image_file_names) \
-            if frames is None else np.array(self.image_file_names)[frames]
+        # self.image_file_names = np.array(self.image_file_names) \
+        #     if frames is None else np.array(self.image_file_names)[frames]
+        self.image_file_names = np.array([ os.path.join(image_folder,f) for f in frames])
 
         # print(self.image_file_names)
 

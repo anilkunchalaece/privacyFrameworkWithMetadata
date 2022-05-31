@@ -343,7 +343,7 @@ class PARETester:
                 joints2d = tracking_results[person_id]['joints2d']
 
             # frames = [ int(f.split(".")[0]) for f in tracking_results[person_id]['frames']]
-            frames = tracking_results[person_id]['frames']
+            frames = tracking_results[person_id]['frameNames']
             
             dataset = Inference(
                 image_folder=image_folder,
@@ -434,7 +434,7 @@ class PARETester:
         return pare_results
 
     def render_results(self, pare_results, image_folder, output_img_folder,
-                       orig_width, orig_height, num_frames, use_single_mesh_color=True):
+                       orig_width, orig_height, num_frames,use_single_mesh_color=True):
         # ========= Render results as a single video ========= #
         renderer = Renderer(
             resolution=(orig_width, orig_height),
@@ -448,20 +448,23 @@ class PARETester:
         frame_results = prepare_rendering_results(pare_results, num_frames)
         mesh_color = {k: colorsys.hsv_to_rgb(np.random.rand(), 0.5, 1.0) for k in pare_results.keys()}
         
-        image_file_names = sorted([
-            os.path.join(image_folder, x)
-            for x in os.listdir(image_folder)
-            if x.endswith('.png') or x.endswith('.jpg')
-        ],key=lambda f: int(re.sub('\D', '', f)))
+        # image_file_names = sorted([
+        #     os.path.join(image_folder, x)
+        #     for x in os.listdir(image_folder)
+        #     if x.endswith('.png') or x.endswith('.jpg')
+        # ],key=lambda f: int(re.sub('\D', '', f)))
 
-        for frame_idx in tqdm(range(len(image_file_names))):
-            img_fname = image_file_names[frame_idx]
+        image_file_names = [os.path.join(image_folder,f) for f in os.listdir(image_folder)]
+
+        # for frame_idx in tqdm(range(len(image_file_names))):
+        for img_fname in image_file_names:
+
             img = cv2.imread(img_fname)
 
             if self.args.sideview:
                 side_img = np.zeros_like(img)
 
-            for person_id, person_data in frame_results[frame_idx].items():
+            for person_id, person_data in frame_results[os.path.basename(img_fname)].items():
                 frame_verts = person_data['verts']
                 frame_cam = person_data['cam']
                 frame_kp = person_data['joints2d']
@@ -476,7 +479,7 @@ class PARETester:
                 if self.args.save_obj:
                     mesh_folder = os.path.join(output_img_folder, 'meshes', f'{person_id:04d}')
                     os.makedirs(mesh_folder, exist_ok=True)
-                    mesh_filename = os.path.join(mesh_folder, f'{frame_idx:06d}.obj')
+                    mesh_filename = os.path.join(mesh_folder, f'{os.path.basename(img_fname)}.obj')
                 # print(frame_verts.shape, frame_cam.shape)
                 img = renderer.render(
                     img,
@@ -503,7 +506,7 @@ class PARETester:
             if self.args.sideview:
                 img = np.concatenate([img, side_img], axis=1)
 
-            cv2.imwrite(os.path.join(output_img_folder, f'{frame_idx:06d}.png'), img)
+            cv2.imwrite(os.path.join(output_img_folder, f'{os.path.basename(img_fname)}'), img)
 
             if self.args.display:
                 cv2.imshow('Video', img)

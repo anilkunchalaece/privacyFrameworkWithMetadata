@@ -282,24 +282,42 @@ def convert_crop_coords_to_orig_img(bbox, keypoints, crop_size):
 
 
 def prepare_rendering_results(vibe_results, nframes):
-    frame_results = [{} for _ in range(nframes)]
+    # frame_results = [{} for _ in range(nframes)]
+    frame_results = {}
+    
     for person_id, person_data in vibe_results.items():
         for idx, frame_id in enumerate(person_data['frame_ids']):
-            frame_results[frame_id][person_id] = {
+            # frame_results[frame_id][person_id] = {
+            #     'verts': person_data['verts'][idx],
+            #     'cam': person_data['orig_cam'][idx],
+            #     'joints2d': person_data['smpl_joints2d'][idx]
+            # }
+
+            if frame_results.get(frame_id,None) == None :
+                frame_results[frame_id] = {
+                    "person_id" : {
+                        'verts': person_data['verts'][idx],
+                        'cam': person_data['orig_cam'][idx],
+                        'joints2d': person_data['smpl_joints2d'][idx]
+                            }
+                }
+            else :
+                frame_results[frame_id][person_id] = {
                 'verts': person_data['verts'][idx],
                 'cam': person_data['orig_cam'][idx],
                 'joints2d': person_data['smpl_joints2d'][idx]
             }
-
+    _frame_results = {} 
     # naive depth ordering based on the scale of the weak perspective camera
-    for frame_id, frame_data in enumerate(frame_results):
+    for frame_id, key in enumerate(frame_results.keys()):
+        frame_data = frame_results[key]
         # sort based on y-scale of the cam in original image coords
         sort_idx = np.argsort([v['cam'][1] for k,v in frame_data.items()])
-        frame_results[frame_id] = OrderedDict(
+        _frame_results[key] = OrderedDict(
             {list(frame_data.keys())[i]:frame_data[list(frame_data.keys())[i]] for i in sort_idx}
         )
 
-    return frame_results
+    return _frame_results
 
 
 def concat_videos(video_list, output_f, horizontal=False):
