@@ -71,7 +71,8 @@ class WireframeGen:
                     data = json.load(fd)
                     df = pd.DataFrame(data["tracklets"])
                     # df["iNo"] = df.loc[:,"imageName"].apply(lambda x: int(x.split('.')[0]))
-                    df["iNo"] = df.loc[:,"imageName"].apply(lambda f: int(re.sub('\D', '', f)))
+                    # df["iNo"] = df.loc[:,"imageName"].apply(lambda f: int(re.sub('\D', '', f)))
+                    df["iNo"] = df.loc[:,"imageName"].apply(lambda f: int(f.split(".")[0][-3:]))
                     df = df.loc[df["score"] >= 0.90]
                     img_shape = data["image_shape"]
                     
@@ -306,13 +307,13 @@ class WireframeGen:
             srcImgs = dirToStoreResizedImgs
 
 
-        dets = self.loadDetections(personDetectionFile,mars=True)                    
+        dets = self.loadDetections(personDetectionFile,mars=True)
+
         tester = PARETester(self.args)
         pare_results = tester.run_on_image_folder(srcImgs, dets, outDir)
         # pare_results = tester.run_on_video(dets, srcImgs, self.out_img_width, self.out_img_height)
     
-
-        # normal rendering without changing the shape
+        # # normal rendering without changing the shape
         # outDirOrig = os.path.join(outDir,"orig")
         # os.makedirs(outDirOrig,exist_ok=True)
 
@@ -327,6 +328,8 @@ class WireframeGen:
         # tester.render_results(pare_results_uniform_shape, srcImgs, outDirUnifiedShape,
         #                           self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
 
+        del tester
+        torch.cuda.empty_cache()
 
     def customShape(self,pare_results):
         # Calculate average shape

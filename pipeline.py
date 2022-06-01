@@ -14,6 +14,7 @@ import cv2
 from multiprocessing import Pool
 import torch
 import re
+import copy
 from sklearn import preprocessing
 
 from wireframeGen import WireframeGen
@@ -252,13 +253,28 @@ def main(args):
     torch.cuda.empty_cache()
 
 def main_mars(args):
-    torch.cuda.empty_cache()
-    # renameSrcDir(args.src_imgs)
-    mg = MetadataGenerator(args)
-    # mg.generateMetadaForEachImg()
-    mg.getPersonDetections()
-    mg.generateWireframes(mars=True)
-    torch.cuda.empty_cache()
+    with open(args.mars_file) as fd :
+        data = json.load(fd)
+        tmp_d = copy.deepcopy(args.tmp_dir)
+        for k in data.keys() :
+            for _s in data[k] :
+                args.tmp_dir = os.path.join(tmp_d,F"{k}_{_s}")
+                src_imgs = "tmp_mars"
+                os.makedirs(src_imgs, exist_ok=True)
+                args.src_imgs = src_imgs
+                for f in data[k][_s] : 
+                    print(f)
+                    shutil.copy(f,src_imgs)
+                torch.cuda.empty_cache()
+                # renameSrcDir(args.src_imgs)
+                mg = MetadataGenerator(args)
+                # mg.generateMetadaForEachImg()
+                mg.getPersonDetections(mars=True)
+                # mg.runByteTracker()
+                mg.generateWireframes(mars=True)
+                torch.cuda.empty_cache()
+                shutil.rmtree(src_imgs)
+        return
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -301,6 +317,7 @@ if __name__ == "__main__":
     parser.add_argument('--save_obj', action='store_true', help='save results as .obj files.')
 
     parser.add_argument("--func",required=True, help="use `mars` if generating for MARS else use `mot` ")
+    parser.add_argument("--mars_file",required=False, help="file mars_tracklets wise image list is stored")
 
     args = parser.parse_args()
 

@@ -33,16 +33,20 @@ class Inference(Dataset):
             osp.join(image_folder, x)
             for x in os.listdir(image_folder)
             if x.endswith('.png') or x.endswith('.jpg') or x.endswith('.jpeg')
-        ])
+        ],key=lambda f: int(f.split(".")[0][-3:]))
+        # print(self.image_file_names)
+        # print(image_folder)
         # self.image_file_names = [ os.path.join(image_folder,F"{y}.{os.listdir(image_folder)[0].split('.')[-1]}") for y in sorted([os.path.basename(x) for x in self.image_file_names],key=lambda f: int(re.sub('\D', '', f)))]
-        self.image_file_names = [ os.path.join(image_folder,F"{y}") for y in sorted([os.path.basename(x) for x in self.image_file_names],key=lambda f: int(re.sub('\D', '', f)))]
+        # Need to change it for every dataset based on image naming convention
+        # self.image_file_names = [ os.path.join(image_folder,F"{y}") for y in sorted([os.path.basename(x) for x in self.image_file_names],key=lambda f: int(re.sub('\D', '', f)))]
+        # self.image_file_names = [ os.path.join(image_folder,F"{y}") for y in sorted([os.path.basename(x) for x in self.image_file_names],key=lambda f: int(f.split(".")[0][-3:]))]
+        
         # self.image_file_names = [x for x in sorted(self.image_file_names,key=lambda f: int(re.sub('\D', '', f)))]
         
         # self.image_file_names = np.array(self.image_file_names) \
         #     if frames is None else np.array(self.image_file_names)[frames]
-        self.image_file_names = np.array([ os.path.join(image_folder,f) for f in frames])
-
-        # print(self.image_file_names)
+        # self.image_file_names = np.array([ os.path.join(image_folder,f) for f in frames])
+        self.image_file_names = np.array(self.image_file_names)
 
         self.scale = scale
         self.bboxes = bboxes

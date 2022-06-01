@@ -165,7 +165,7 @@ class PARETester:
             for x in os.listdir(image_folder)
             if x.endswith('.png') or x.endswith('.jpg') or x.endswith('.jpeg')
         ]
-        image_file_names = sorted(image_file_names,key=lambda f: int(re.sub('\D', '', f)))
+        # image_file_names = sorted(image_file_names,key=lambda f: int(re.sub('\D', '', f)))
 
         # detections = [ _detections[d]['bbox'] for d in _detections.keys() ]
         output_img_folder = os.path.join(output_path,"wireframes")
