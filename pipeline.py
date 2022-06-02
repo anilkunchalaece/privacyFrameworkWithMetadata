@@ -264,6 +264,9 @@ def main_mars(args):
         for k in data.keys() :
             for _s in data[k] :
                 args.tmp_dir = os.path.join(tmp_d,F"{k}_{_s}")
+                if os.path.isdir(args.tmp_dir) :
+                    print(F"{args.tmp_dir} exists , continuing to the other one")
+                    continue
                 src_imgs = "tmp_mars"
                 os.makedirs(src_imgs, exist_ok=True)
                 args.src_imgs = src_imgs
