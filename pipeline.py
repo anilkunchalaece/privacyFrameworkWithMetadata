@@ -18,6 +18,7 @@ import copy
 from sklearn import preprocessing
 
 from wireframeGen import WireframeGen
+from lib.pare.core.tester import PARETester
 
 # Config for PARE
 CFG = 'data/pare/checkpoints/pare_w_3dpw_config.yaml'
@@ -253,6 +254,7 @@ def main(args):
     torch.cuda.empty_cache()
 
 def main_mars(args):
+    tester = PARETester(args)
     with open(args.mars_file) as fd :
         data = json.load(fd)
         tmp_d = copy.deepcopy(args.tmp_dir)
@@ -271,7 +273,7 @@ def main_mars(args):
                 # mg.generateMetadaForEachImg()
                 mg.getPersonDetections(mars=True)
                 # mg.runByteTracker()
-                mg.generateWireframes(mars=True)
+                mg.generateWireframes(mars=True, tester=tester)
                 torch.cuda.empty_cache()
                 shutil.rmtree(src_imgs)
         return

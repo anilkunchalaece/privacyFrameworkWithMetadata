@@ -45,6 +45,7 @@ class PreprocessRAPv2:
         attribute_names = [list(x)[0].strip() for x in data["RAP_annotation"][0][0][2][:,0].tolist()]
         img_names = [list(x)[0] for x in data["RAP_annotation"][0][0][0][:,0].tolist()]
         attr_values = np.array([list(x) for x in data["RAP_annotation"][0][0][1].tolist()])
+        idendities = np.array([x for x in data["RAP_annotation"][0][0][-2][:,0].tolist()])
 
         partition = {}
         partition["train"] = data["RAP_annotation"][0][0][4][0][1][0][0][0][0].tolist()
@@ -72,13 +73,39 @@ class PreprocessRAPv2:
             "images" : np.array(img_names),
             "attributes" : attr_values[:,attr_intr_idxs],
             "attribute_names" : attr_intr,
-            "partition" : partition
+            "partition" : partition,
+            "identities" : np.array(idendities)
         }
 
         return dataToSend
 
+    def describe(self):
+        cam = []
+        trackId = []
+        line = []
+        # for _img in data["images"].tolist() :
+        #     img = _img.split("-")
+        #     cam.append(img[0])
+        #     trackId.append(img[-3])
+        #     line.append(img[-1].split(".")[0])
 
+        data = self.processData()
+
+        outDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/tracklets"
+        os.makedirs(outDir,exist_ok=True)
+
+        trackletImgs = {}
+
+        n_identities = np.unique(data["identities"]).tolist()
+        for ni in n_identities :
+            if ni == -1 or ni == -2 :
+                continue
+            ni_images = data["images"][np.argwhere(data["identities"] == ni)].tolist()
+            trackletImgs[ni] = ni_images
+        # print(trackletImgs[2])
+        print(sorted(trackletImgs[2], key= lambda x: int(x[0].split("-")[-2].replace("frame",""))))
+            
 if __name__ == "__main__" :
     fileLocation = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat"
     rapD = PreprocessRAPv2(fileLocation)
-    rapD.processData()
+    rapD.describe()

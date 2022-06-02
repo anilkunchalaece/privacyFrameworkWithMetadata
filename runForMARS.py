@@ -1,5 +1,5 @@
 import os
-srcDir = "/home/akunchala/Documents/z_Datasets/MARS_Dataset/test"
+srcDir = "/home/akunchala/Documents/z_Datasets/MARS_Dataset/bbox_train"
 
 for d in os.listdir(srcDir) :
     os.makedirs("mars_derived",exist_ok=True)

@@ -281,7 +281,7 @@ class WireframeGen:
                                   self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
 
     # use PARE to generate wireframes
-    def generateWireframesForMARS(self,srcImgs, personDetectionFile=None,outDir=None):
+    def generateWireframesForMARS(self,srcImgs, personDetectionFile=None,outDir=None,tester=None):
         self.out_img_height = 120
         self.out_img_width = 60
         self.in_img_width = 128 # x_org
@@ -308,8 +308,9 @@ class WireframeGen:
 
 
         dets = self.loadDetections(personDetectionFile,mars=True)
-
-        tester = PARETester(self.args)
+        
+        if tester == None : # if no tester specified , generate an instance
+            tester = PARETester(self.args)
         pare_results = tester.run_on_image_folder(srcImgs, dets, outDir)
         # pare_results = tester.run_on_video(dets, srcImgs, self.out_img_width, self.out_img_height)
     
