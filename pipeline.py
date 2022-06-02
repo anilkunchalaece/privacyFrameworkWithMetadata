@@ -226,12 +226,12 @@ class MetadataGenerator:
 
 
     # used to generate wireframe for given images using PARE - https://github.com/mkocabas/PARE
-    def generateWireframes(self,mars=False):
+    def generateWireframes(self,mars=False,tester=None):
         wg = WireframeGen(self.args)
         if mars == False :
             wg.generateWireframes(self.args.src_imgs)
         else :
-            wg.generateWireframesForMARS(self.args.src_imgs)
+            wg.generateWireframesForMARS(self.args.src_imgs,tester=tester)
     
 def renameSrcDir(srcDir) :
     # Check fileNames -> files should start with 0, if not rename them
