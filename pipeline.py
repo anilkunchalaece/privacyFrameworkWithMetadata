@@ -281,6 +281,13 @@ def main_mars(args):
                 shutil.rmtree(src_imgs)
         return
 
+def main_rap(args) :
+    tester = PARETester(args)
+    detClass = ObjectDetectorClass()
+    mg = MetadataGenerator(args)
+    mg.getPersonDetections(mars=True,objDets=detClass)
+    mg.generateWireframes(mars=True, tester=tester)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--src_imgs",type=str,help="input imgs location",required=False, default=None)
@@ -330,6 +337,8 @@ if __name__ == "__main__":
         main(args)
     elif args.func == "mars":
         main_mars(args)
+    elif args.func == "rap":
+        main_rap(args)
     else :
         print("please use func argument either with mot or mars")
     # mg = MetadataGenerator(args)
