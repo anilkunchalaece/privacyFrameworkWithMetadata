@@ -19,6 +19,7 @@ from sklearn import preprocessing
 
 from wireframeGen import WireframeGen
 from lib.pare.core.tester import PARETester
+from lib.objectDetector import ObjectDetector
 
 # Config for PARE
 CFG = 'data/pare/checkpoints/pare_w_3dpw_config.yaml'
@@ -32,8 +33,9 @@ class MetadataGenerator:
         os.makedirs(args.tmp_dir,exist_ok=True)
         self.bboxTracketRef = []
 
-    def getPersonDetections(self,mars=False):
-        objDets = ObjectDetectorClass()
+    def getPersonDetections(self,mars=False,objDets=None):
+        if objDets == None :
+            objDets = ObjectDetectorClass()
         if self.args.det_file == None :
             if mars == False :
                 detFile = objDets.saveMasksAndGetObjects(args.src_imgs, args.tmp_dir)
@@ -255,6 +257,7 @@ def main(args):
 
 def main_mars(args):
     tester = PARETester(args)
+    detClass = ObjectDetectorClass()
     with open(args.mars_file) as fd :
         data = json.load(fd)
         tmp_d = copy.deepcopy(args.tmp_dir)
@@ -271,7 +274,7 @@ def main_mars(args):
                 # renameSrcDir(args.src_imgs)
                 mg = MetadataGenerator(args)
                 # mg.generateMetadaForEachImg()
-                mg.getPersonDetections(mars=True)
+                mg.getPersonDetections(mars=True,objDets=detClass)
                 # mg.runByteTracker()
                 mg.generateWireframes(mars=True, tester=tester)
                 torch.cuda.empty_cache()
