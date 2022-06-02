@@ -103,7 +103,11 @@ class PreprocessRAPv2:
             ni_images = data["images"][np.argwhere(data["identities"] == ni)].tolist()
             trackletImgs[ni] = ni_images
         # print(trackletImgs[2])
-        print(sorted(trackletImgs[2], key= lambda x: int(x[0].split("-")[-2].replace("frame",""))))
+        # print(sorted(trackletImgs[2], key= lambda x: int(x[0].split("-")[-2].replace("frame",""))))
+        with open("rapv2_tracklets.json") as fd :
+            json.dump(trackletImgs,fd)
+            
+        return trackletImgs
             
 if __name__ == "__main__" :
     fileLocation = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat"

@@ -31,7 +31,7 @@ class ObjectDetectorClass:
         self.score_threshold = 0.1 # threshold used for mask generation
         self.batch_size = 2 # batchsize used for running inference
 
-        self.transform = transforms.Compose([transforms.ToTensor()])
+        self.transform = transforms.Compose([transforms.ToTensor(),transforms.Resize((256,128))])
 
     @torch.no_grad()
     def getObjects(self,imageDir,dirToSave):
