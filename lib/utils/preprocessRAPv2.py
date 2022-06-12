@@ -111,8 +111,8 @@ class PreprocessRAPv2:
 
         data = self.processData()
 
-        outDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/tracklets"
-        os.makedirs(outDir,exist_ok=True)
+        # outDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/tracklets"
+        # os.makedirs(outDir,exist_ok=True)
 
         trackletImgs = {}
 
