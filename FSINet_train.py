@@ -34,9 +34,9 @@ def train():
                                     transforms.RandomRotation(degrees=45)])
     
     annotationFile = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat"
-    rootDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_dataset"
+    rootDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/derived/wireframes"
     pr = PreprocessRAPv2(annotationFile)    
-    triplets = pr.generateTriplets()[:500]
+    triplets = pr.generateTriplets()
     train, valid = train_test_split(triplets,shuffle=True)
 
     train_dataset = FusedDataset(rootDir,train, transform)
@@ -122,7 +122,7 @@ def train():
             badEpoch = 0 # reset bad epochs
 
             #save model
-            torch.save(model.state_dict(),"models/sinet.pth")
+            torch.save(model.state_dict(),"models/FSINet.pth")
 
         else :
             if _vl - validLossPrev >= 0.0001 : # min delta

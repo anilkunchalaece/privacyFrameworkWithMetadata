@@ -58,16 +58,16 @@ class FusedSimilarityNet(nn.Module):
                                     self.attachment_embed_layer(x["attrIdxs"][3].unsqueeze(0)),
                                     self.upper_body_clothing_layer(x["attrIdxs"][4].unsqueeze(0)), 
                                     self.lower_body_clothing_layer(x["attrIdxs"][5].unsqueeze(0))
-                                ],dim=2)
-
-        # logger.info(F"{embed_base.shape}")
+                                ],dim=2).squeeze()
 
         embed_f = self.embed_fc(embed_base)
-
-        return {
-            "img_f" : img_f,  
-            "embed_f" : embed_f
-        }
+        out = torch.cat([img_f,embed_f],dim=1)
+        # logger.info(F"{img_f.shape}, {embed_f.shape},{out.shape}")
+        # return {
+        #     "img_f" : img_f,  
+        #     "embed_f" : embed_f
+        # }
+        return out
 
     def forward(self,anchor,positive,negative=None):
         p_out = self.forward_one(positive)
