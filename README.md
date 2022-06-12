@@ -21,6 +21,10 @@
   - In bbox "0065C1T0002F0016.jpg", "0065" is the ID of the pedestrian. "C1" denotes the first camera (there are totally 6 cameras). "T0002" means the 2th tracklet. "F016" is the 16th frame within this tracklet. For the tracklets, their names are accumulated for each ID; but for frames, they start from "F001" in each tracklet.
 - Need to extract SMPL images for the MARS dataset
 - Build & Train Siamese Network using MARS dataset SMPL models and Metadata tags
+## Diversity Index
+- Calculate the  (mean ? / each attribute ?) categorical diversity index for attributes
+- Check the impact on the Image fusion and application impact
+- Vary the index and check the privacy and application implications
 ### Issues
 - Background
   - Rendering the SMPL mesh on top of the existing image
@@ -67,3 +71,8 @@
       - Might be useful when using k-annomization
   2. 'runByteTracker()'
     - run the byteTracker for given images
+
+## Helpful commands
+  1. Copying large number of files between directories , use following cmd [ref](https://www.unix.com/unix-for-dummies-questions-and-answers/206599-using-unix-commands-larger-number-files.html)
+
+      `for file in Inputpath/*.[Pp][Dd][Ff]; do cp "$file" outputpath; done` 
