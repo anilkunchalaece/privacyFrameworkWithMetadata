@@ -24,5 +24,8 @@ FUSED_CONFIG = {
 
     # Config for resnet fc layers
     "RESNET_FC1_OUT" : 1024,
-    "RESNET_FC2_OUT" : 256
+    "RESNET_FC2_OUT" : 256,
+
+    "FC1_OUT" : 1024,
+    "FC2_OUT" : 256
 }

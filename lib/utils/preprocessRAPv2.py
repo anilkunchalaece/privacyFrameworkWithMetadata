@@ -39,8 +39,11 @@ def getAttrOfIntrest():
 
 
 class PreprocessRAPv2:
-    def __init__(self,fileLocation,data_percent=100,MIN_IMGS_IN_TRACKLET=6):
+    # fileLocation -> attribute file location
+    # rootDir -> dir where the images are
+    def __init__(self,fileLocation,rootDir,MIN_IMGS_IN_TRACKLET=6):
         self.fileLocation = fileLocation
+        self.rootDir = rootDir
         self.MIN_IMGS_IN_TRACKLET = MIN_IMGS_IN_TRACKLET
         self.GENDER_ATTR = ['Female', 'Male']
         self.AGE_ATTR = ['AgeLess16','Age17-30','Age31-45','Age46-60','AgeBiger60','NA']
@@ -134,14 +137,23 @@ class PreprocessRAPv2:
         with open("rapv2_tracklets.json","w") as fd :
             json.dump(trackletImgs,fd)
 
-        # trackletImgs = sorted(trackletImgs, key= lambda f: len(trackletImgs[f]["images"]))
-        # print(trackletImgs)
+        out = {}
 
-        # for k in trackletImgs.keys():
-        #     print(len(trackletImgs[k]["images"]),sep=",") 
+        for k in trackletImgs.keys():
+            for idx, img in enumerate(trackletImgs[k]["images"]):
+                if not os.path.exists(os.path.join(self.rootDir,img)):
+                    print(F"{os.path.join(self.rootDir,img)} not found")
+                    trackletImgs[k]["images"].pop(idx)
+                    trackletImgs[k]["attributes_names"].pop(idx)
+                    trackletImgs[k]["attributes"].pop(idx)
+            out[k] = {
+                "images" : trackletImgs[k]["images"],
+                "attributes_names" : trackletImgs[k]["attributes_names"],
+                "attributes" : trackletImgs[k]["attributes"]
+            }
 
         #sort tracklets based on length and return them
-        return trackletImgs
+        return out
 
     def processAttrs(self, attrs) :
         # print(attrs)
@@ -250,5 +262,7 @@ class PreprocessRAPv2:
 
 if __name__ == "__main__" :
     fileLocation = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat"
-    rapD = PreprocessRAPv2(fileLocation)
-    rapD.generateTriplets()()
+    rootDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/derived/wireframes"
+    rapD = PreprocessRAPv2(fileLocation,rootDir)
+    rapD.describe()
+    # rapD.generateTriplets()()

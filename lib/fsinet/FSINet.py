@@ -36,6 +36,12 @@ class FusedSimilarityNet(nn.Module):
             nn.Linear(config["EMBED_FC1_OUT"], config["EMBED_FC2_OUT"])
         )
 
+        self.fsi_out = nn.Sequential(
+                                    nn.Linear(config["EMBED_FC2_OUT"]+config["RESNET_FC2_OUT"], config["FC1_OUT"]),
+                                    nn.ReLU(),
+                                    nn.Linear(config["FC1_OUT"],config["FC2_OUT"])
+                                    )
+
 
     # x is a dict with following - image and attr
     # attr is a dict of following embeddings 
@@ -61,7 +67,7 @@ class FusedSimilarityNet(nn.Module):
                                 ],dim=2).squeeze()
 
         embed_f = self.embed_fc(embed_base)
-        out = torch.cat([img_f,embed_f],dim=1)
+        out = self.fsi_out(torch.cat([img_f,embed_f],dim=1))
         # logger.info(F"{img_f.shape}, {embed_f.shape},{out.shape}")
         # return {
         #     "img_f" : img_f,  

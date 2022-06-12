@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 from loguru import logger
+import argparse
 
 device = torch.device('cuda' if torch.cuda.is_available else 'cpu')
 torch.manual_seed(42)
@@ -28,19 +29,17 @@ img_height = 120
 batchSize = 100
 N_EPOCH = 100
 
-def train():
+def train(args):
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Resize((img_height,img_width)),# height,width
                                     transforms.RandomRotation(degrees=45)])
     
-    annotationFile = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat"
-    rootDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/derived/wireframes"
-    pr = PreprocessRAPv2(annotationFile)    
+    pr = PreprocessRAPv2(args.anon_file,args.src_imgs)    
     triplets = pr.generateTriplets()
     train, valid = train_test_split(triplets,shuffle=True)
 
-    train_dataset = FusedDataset(rootDir,train, transform)
-    valid_dataset = FusedDataset(rootDir,valid, transform)
+    train_dataset = FusedDataset(args.src_imgs,train, transform)
+    valid_dataset = FusedDataset(args.src_imgs,valid, transform)
 
     train_dataloader = DataLoader(train_dataset,batch_size=batchSize,shuffle=True,drop_last=True)
     valid_dataloader = DataLoader(valid_dataset,batch_size=batchSize,shuffle=True,drop_last=True)
@@ -146,4 +145,8 @@ def train():
 
 
 if __name__ == "__main__" :
-    train()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--src_imgs",type=str,help="input imgs location",required=True, default=None)
+    parser.add_argument("--anon_file",type=str,help="annotation file location", required=True, default=None)
+    args = parser.parse_args()
+    train(args)
