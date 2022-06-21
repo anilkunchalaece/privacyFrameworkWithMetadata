@@ -139,7 +139,19 @@ def train(args):
     print(F"Training and validation losses are saved in {lossFileName}")
 
 
-
+def plotLoss():
+    fileName = "fsiNet_losses.json"
+    try :
+        with open(fileName) as fd:
+            d = json.load(fd)
+            NO_OF_ITEMS = 200
+            plt.plot(d["train"][:NO_OF_ITEMS],label="Training")
+            plt.plot(d["valid"][:NO_OF_ITEMS],label="Validation")
+            plt.title("FSINet ( wireframes with org labels) Training loss")
+            plt.legend()
+            plt.show()
+    except Exception as e :
+        print(F"unable to open {fileName} with exception {str(e)}")
 
 
 
@@ -148,5 +160,10 @@ if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
     parser.add_argument("--src_imgs",type=str,help="input imgs location",required=True, default=None)
     parser.add_argument("--anon_file",type=str,help="annotation file location", required=True, default=None)
+    parser.add_argument("--func", type=str, help="function to execute", required=True,default="plot")
     args = parser.parse_args()
-    train(args)
+
+    if args.func == "train" :
+        train(args)
+    elif args.func == "plot" :
+        plotLoss()

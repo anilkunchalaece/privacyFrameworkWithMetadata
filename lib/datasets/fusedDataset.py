@@ -50,9 +50,9 @@ class FusedDataset(Dataset):
         }
 
     # Triplets are generating randomly
-    def generateTriplets(self,annotationFile):
+    def generateTriplets(self,annotationFile,rootDir):
         logger.info("loading triplets")
-        pr = PreprocessRAPv2(annotationFile)
+        pr = PreprocessRAPv2(annotationFile,rootDir)
         _tracklets = pr.describe()
         # tIds = sorted(tracklets,key=lambda f: len(tracklets[f]["images"]),reverse=True)
         tracklets = [_tracklets[t] for t in _tracklets if len(_tracklets[t]["images"]) >= self.MIN_IMGS_IN_TRACKLET ]
@@ -126,28 +126,35 @@ class FusedDataset(Dataset):
         
         return [gender_idx,age_idx,bodyShape_idx,attachment_idx,upperBody_idx,lowerBody_idx]
 
-    def visualizeTriplets(self) :
-        triplets = self.generateTriplets()
+    def visualizeTriplets(self,annotationFile,rootDir,origImgDir) :
+        triplets = self.allTriplets#self.generateTriplets(annotationFile,rootDir)
         triplets_sel = random.sample(list(range(len(triplets))),9)
         # select 3 triplets and show them in grid
         fig = plt.figure()
         grid = ImageGrid(fig, 111,  # similar to subplot(111)
                         nrows_ncols=(3, 9),  # creates 2x2 grid of axes
-                        axes_pad=0.25,  # pad between axes in inch.
+                        axes_pad=0.35,  # pad between axes in inch.
                         )
 
         imgs = []
         titles = []
+
         for idx in triplets_sel :
             _imgs = []
-            # print(os.path.join(rootDir,triplets[idx]["anchor"]["image"]))
-            # print(os.path.join(rootDir,triplets[idx]["positive"]["image"]))
-            # print(os.path.join(rootDir,triplets[idx]["negative"]["image"]))
+            _imgs.append(cv2.resize(cv2.imread(os.path.join(origImgDir,triplets[idx]["anchor"]["image"])),(60,120),interpolation = cv2.INTER_AREA)[:,:,::-1])
             _imgs.append(cv2.imread(os.path.join(rootDir,triplets[idx]["anchor"]["image"]))[:,:,::-1])
+            _imgs.append(self.addTags(triplets[idx]["anchor"])[:,:,::-1])
+            
+            _imgs.append(cv2.resize(cv2.imread(os.path.join(origImgDir,triplets[idx]["positive"]["image"])),(60,120))[:,:,::-1])
             _imgs.append(cv2.imread(os.path.join(rootDir,triplets[idx]["positive"]["image"]))[:,:,::-1])
+            _imgs.append(self.addTags(triplets[idx]["positive"])[:,:,::-1])
+
+            _imgs.append(cv2.resize(cv2.imread(os.path.join(origImgDir,triplets[idx]["negative"]["image"])),(60,120))[:,:,::-1])
             _imgs.append(cv2.imread(os.path.join(rootDir,triplets[idx]["negative"]["image"]))[:,:,::-1])
+            _imgs.append(self.addTags(triplets[idx]["negative"])[:,:,::-1])
+            
             imgs.extend(_imgs)
-            titles.extend(['Anchor','Positive','Negative'])
+            titles.extend(['A-Orig','A-Wireframe','A-Tags','P-Orig','P-Wireframe','P-Tags','N-Orig','N-Wireframe','N-Tags'])
 
         for ax, im, t in zip(grid, imgs,titles):
             # Iterating over the grid returns the Axes.
@@ -155,12 +162,30 @@ class FusedDataset(Dataset):
             ax.set_title(t)
         plt.show()
 
+    def addTags(self,t):
+        # coordinates = (100,100)
+        font = cv2.FONT_HERSHEY_COMPLEX
+        fontScale = 0.25
+        color = (0,0,0)
+        thickness = 1
+        lineType = cv2.FILLED
+        img = cv2.imread("empty.png")
+        _im = cv2.putText(img,t["gender"], (5,15), font, fontScale, color, thickness, lineType)
+        _im = cv2.putText(img, t["age"], (5,30), font, fontScale, color, thickness, lineType)
+        _im = cv2.putText(img, t["bodyShape"], (5,45), font, fontScale, color, thickness, lineType)
+        _im = cv2.putText(img, t["attachment"].split("-")[-1], (5,60), font, fontScale, color, thickness, lineType)
+        _im = cv2.putText(img, t["upperBodyClothing"], (5,75), font, fontScale, color, thickness, lineType)
+        _im = cv2.putText(img, t["lowerBodyClothing"], (5,90), font, fontScale, color, thickness, lineType)
+
+        return _im
+
 if __name__ == "__main__" :
     import sys
     sys.path.append("/home/akunchala/Documents/PhDStuff/privacyFrameworkWithMetadata")
     from lib.utils.preprocessRAPv2 import *
     annotationFile = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat"
-    rootDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_dataset"
+    origImgDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_dataset"
+    rootDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/derived/wireframes/"
 
     transform_eval = transforms.Compose([
         transforms.ToTensor(),
@@ -168,8 +193,9 @@ if __name__ == "__main__" :
         # transforms.RandomRotation(degrees=45)
     ])
 
-    pR = PreprocessRAPv2(annotationFile)
+    pR = PreprocessRAPv2(annotationFile,rootDir)
     fd = FusedDataset(rootDir,pR.generateTriplets(),transform_eval)
+    fd.visualizeTriplets(annotationFile,rootDir,origImgDir)
     print(fd[0].keys())
     
 

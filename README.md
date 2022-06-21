@@ -10,17 +10,26 @@
 - Able extract Metadata for each img
 - Integrated STTN for background extraction
 
-## Feature Fusion using Siamese Network
-- RAPv2 dataset is not useful since pedestrians tracklets not consistent
-- MARS dataset
+## Feature Fusion using Siamese Network - **FSINet**
+- Architecture
+  ![alt FSINet-Concat Architecture](readMeImgs/privacyFramework-FSINet_Concat.png)
+- RAPv2 dataset 
+  - Images are sorted using the pedestrian id 
+  - Triplets with metadata tags
+  ![alt Triplets with Metadata tags](readMeImgs/tripletsWithMetadata.png)
+- ~~MARS dataset~~
+  - **Although it seems good fit for the purpose, Each pedestrian id is only attributed with specific attributes**
+  - **Since there is no diversity in MARS attributes,<span style="color:red"> I'm not using this </span>**
+    - *Later may be used by introducing some noise in the tags*
   - Don't have a body shape attributes
     - Need to comeup with a way to add attribute
     - Or may be run without shape attribute and dont use uniform shape for the pedestrians
     - Then add the shape attribute to the MARS dataset and train the network with unified shape
-- [MARS naming convention](http://zheng-lab.cecs.anu.edu.au/Project/project_mars.html)
-  - In bbox "0065C1T0002F0016.jpg", "0065" is the ID of the pedestrian. "C1" denotes the first camera (there are totally 6 cameras). "T0002" means the 2th tracklet. "F016" is the 16th frame within this tracklet. For the tracklets, their names are accumulated for each ID; but for frames, they start from "F001" in each tracklet.
-- Need to extract SMPL images for the MARS dataset
-- Build & Train Siamese Network using MARS dataset SMPL models and Metadata tags
+  - [MARS naming convention](http://zheng-lab.cecs.anu.edu.au/Project/project_mars.html)
+    - In bbox "0065C1T0002F0016.jpg", "0065" is the ID of the pedestrian. "C1" denotes the first camera (there are totally 6 cameras). "T0002" means the 2th tracklet. "F016" is the 16th frame within this tracklet. For the tracklets, their names are accumulated for each ID; but for frames, they start from "F001" in each tracklet.
+  - Need to extract SMPL images for the MARS dataset
+  - ~~Build & Train Siamese Network using MARS dataset SMPL models and Metadata tags~~
+  - 
 ## Diversity Index
 - Calculate the  (mean ? / each attribute ?) categorical diversity index for attributes
 - Check the impact on the Image fusion and application impact
