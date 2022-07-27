@@ -25,6 +25,7 @@ from functools import partial
 from ray import tune
 from ray.tune import CLIReporter 
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.suggest.basic_variant import BasicVariantGenerator
 
 device = torch.device('cuda' if torch.cuda.is_available else 'cpu')
 torch.manual_seed(42)
@@ -33,11 +34,12 @@ logger.info(F"running with {device}")
 img_width = 60
 img_height = 120
 batchSize = 100
-N_EPOCH = 20
+N_EPOCH = 100
 LIMIT_DATA = False
 
 def train(config,checkpoint_dir=None):
     transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)),
                                     transforms.Resize((img_height,img_width)),# height,width
                                     transforms.RandomRotation(degrees=45)])
     
@@ -45,9 +47,10 @@ def train(config,checkpoint_dir=None):
     triplets = pr.generateTriplets()
 
     if LIMIT_DATA :
-        train, valid = train_test_split(triplets[:1000],shuffle=True)
+        # train, valid = train_test_split(triplets[:2500],shuffle=True)
+        train , valid, test = triplets["train"][:1000] , triplets["val"][:200], triplets["test"][:200]
     else :
-        train, valid = train_test_split(triplets,shuffle=True)
+        train , valid, test = triplets["train"] , triplets["val"], triplets["test"]
 
     train_dataset = FusedDataset(args.src_imgs,train, transform)
     valid_dataset = FusedDataset(args.src_imgs,valid, transform)
@@ -129,7 +132,8 @@ def train(config,checkpoint_dir=None):
             torch.save((model.state_dict(), opt.state_dict()), path)
         
         tune.report(
-            loss=_vl
+            loss=_vl,
+            tloss=_tl
         )
 
 
@@ -149,7 +153,7 @@ def plotLoss():
         print(F"unable to open {fileName} with exception {str(e)}")
 
 
-def main(args,num_samples=10,max_num_epochs=50, gpus_per_trial=2):
+def main(args,num_samples=10,max_num_epochs=20, gpus_per_trial=2):
     config = {
         # "l1": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
         # "l2": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
@@ -185,17 +189,27 @@ def main(args,num_samples=10,max_num_epochs=50, gpus_per_trial=2):
     
     reporter = CLIReporter(
         # parameter_columns=["l1", "l2", "lr", "batch_size"],
-        metric_columns=["loss", "training_iteration"])
+        metric_columns=["loss","tloss", "training_iteration"],
+        print_intermediate_tables=False)
+
+    search_alg = BasicVariantGenerator(random_state=42)
     
     result = tune.run(
         partial(train),
         config=config,
-        resources_per_trial={"cpu": 6, "gpu": 1},
+        resources_per_trial={"cpu": 10, "gpu": 1},
         num_samples=num_samples,
         scheduler=scheduler,
+        # search_alg=search_alg,
         progress_reporter=reporter,
-        local_dir="tune_results")    
-
+        local_dir="tune_results")
+    
+    best_trial = result.get_best_trial("loss", "min", "last")    
+    print("Best trial config: {}".format(best_trial.config))
+    print("Best trial final validation loss: {}".format(
+        best_trial.last_result["loss"]))
+    print("Best trial final validation accuracy: {}".format(
+        best_trial.last_result["tloss"]))
 
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()

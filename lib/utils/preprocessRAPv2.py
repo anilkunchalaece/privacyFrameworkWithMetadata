@@ -102,7 +102,7 @@ class PreprocessRAPv2:
 
         return dataToSend
 
-    def describe(self):
+    def describe(self,partitionKey=None):
         cam = []
         trackId = []
         line = []
@@ -113,6 +113,10 @@ class PreprocessRAPv2:
         #     line.append(img[-1].split(".")[0])
 
         data = self.processData()
+        if partitionKey != None :
+            data["images"] = data["images"][data["partition"][partitionKey]]
+            data["identities"] = data["identities"][data["partition"][partitionKey]]
+            data["attributes"] = data["attributes"][data["partition"][partitionKey]]
 
         # outDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/tracklets"
         # os.makedirs(outDir,exist_ok=True)
@@ -151,6 +155,8 @@ class PreprocessRAPv2:
                 "attributes_names" : trackletImgs[k]["attributes_names"],
                 "attributes" : trackletImgs[k]["attributes"]
             }
+
+        print(len(out))
 
         #sort tracklets based on length and return them
         return out
@@ -197,72 +203,75 @@ class PreprocessRAPv2:
     # Triplets are generating randomly
     def generateTriplets(self):
         logger.info("loading triplets")
-        _tracklets = self.describe()
-        # tIds = sorted(tracklets,key=lambda f: len(tracklets[f]["images"]),reverse=True)
-        tracklets = [_tracklets[t] for t in _tracklets if len(_tracklets[t]["images"]) >= self.MIN_IMGS_IN_TRACKLET ]
+        out = {}
+        for k in ["train","val","test"] :
+            _tracklets = self.describe(k)
+            # tIds = sorted(tracklets,key=lambda f: len(tracklets[f]["images"]),reverse=True)
+            tracklets = [_tracklets[t] for t in _tracklets if len(_tracklets[t]["images"]) >= self.MIN_IMGS_IN_TRACKLET ]
 
-        logger.info(F"org tracklets {len(_tracklets)} , filtered tracklets {len(tracklets)}")
+            logger.info(F"org tracklets {len(_tracklets)} , filtered tracklets {len(tracklets)}")
 
-        triplets = []
-        totalTriplets = 0
-        for idx,t in enumerate(tracklets) :
-            _t_other = [x for x in range(len(tracklets)) if x != idx ]
-            pairsToGenerate = int(len(t["images"])/2)
-            negativeImgIdxes = random.sample(_t_other, pairsToGenerate)
+            triplets = []
+            totalTriplets = 0
+            for idx,t in enumerate(tracklets) :
+                _t_other = [x for x in range(len(tracklets)) if x != idx ]
+                pairsToGenerate = int(len(t["images"])/2)
+                negativeImgIdxes = random.sample(_t_other, pairsToGenerate)
 
-            anchor_range = list(range(0,pairsToGenerate))
-            positive_range = list(range(pairsToGenerate,len(t["images"])))
-            
-            for pIdx in range(pairsToGenerate):
-                anchor_idx =  random.choice(anchor_range)
-                positive_idx = random.choice(positive_range)
-                negative_idx = random.choice(list(range(len(tracklets[negativeImgIdxes[pIdx]]["images"]))))
+                anchor_range = list(range(0,pairsToGenerate))
+                positive_range = list(range(pairsToGenerate,len(t["images"])))
+                
+                for pIdx in range(pairsToGenerate):
+                    anchor_idx =  random.choice(anchor_range)
+                    positive_idx = random.choice(positive_range)
+                    negative_idx = random.choice(list(range(len(tracklets[negativeImgIdxes[pIdx]]["images"]))))
 
-                anchor = {
-                    "image" : t["images"][anchor_idx],
-                    "attrIdxs" : self.attributeNamesToIndex(t["attributes_names"][anchor_idx]),
-                    "gender" : t["attributes_names"][anchor_idx][0],
-                    "age" : t["attributes_names"][anchor_idx][1],
-                    "bodyShape" : t["attributes_names"][anchor_idx][2],
-                    "attachment" : t["attributes_names"][anchor_idx][5],
-                    "upperBodyClothing" : t["attributes_names"][anchor_idx][3],
-                    "lowerBodyClothing" : t["attributes_names"][anchor_idx][4]
-                }
+                    anchor = {
+                        "image" : t["images"][anchor_idx],
+                        "attrIdxs" : self.attributeNamesToIndex(t["attributes_names"][anchor_idx]),
+                        "gender" : t["attributes_names"][anchor_idx][0],
+                        "age" : t["attributes_names"][anchor_idx][1],
+                        "bodyShape" : t["attributes_names"][anchor_idx][2],
+                        "attachment" : t["attributes_names"][anchor_idx][5],
+                        "upperBodyClothing" : t["attributes_names"][anchor_idx][3],
+                        "lowerBodyClothing" : t["attributes_names"][anchor_idx][4]
+                    }
 
-                positive = {
-                    "image" : t["images"][positive_idx],
-                    "attrIdxs" : self.attributeNamesToIndex(t["attributes_names"][positive_idx]),
-                    "gender" : t["attributes_names"][positive_idx][0],
-                    "age" : t["attributes_names"][positive_idx][1],
-                    "bodyShape" : t["attributes_names"][positive_idx][2],
-                    "attachment" : t["attributes_names"][positive_idx][5],
-                    "upperBodyClothing" : t["attributes_names"][positive_idx][3],
-                    "lowerBodyClothing" : t["attributes_names"][positive_idx][4]
-                }
+                    positive = {
+                        "image" : t["images"][positive_idx],
+                        "attrIdxs" : self.attributeNamesToIndex(t["attributes_names"][positive_idx]),
+                        "gender" : t["attributes_names"][positive_idx][0],
+                        "age" : t["attributes_names"][positive_idx][1],
+                        "bodyShape" : t["attributes_names"][positive_idx][2],
+                        "attachment" : t["attributes_names"][positive_idx][5],
+                        "upperBodyClothing" : t["attributes_names"][positive_idx][3],
+                        "lowerBodyClothing" : t["attributes_names"][positive_idx][4]
+                    }
 
-                negative = {
-                    "image" : tracklets[negativeImgIdxes[pIdx]]["images"][negative_idx],
-                    "attrIdxs" : self.attributeNamesToIndex(tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx]),
-                    "gender" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][0],
-                    "age" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][1],
-                    "bodyShape" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][2],
-                    "attachment" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][5],
-                    "upperBodyClothing" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][3],
-                    "lowerBodyClothing" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][4]
-                }
+                    negative = {
+                        "image" : tracklets[negativeImgIdxes[pIdx]]["images"][negative_idx],
+                        "attrIdxs" : self.attributeNamesToIndex(tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx]),
+                        "gender" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][0],
+                        "age" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][1],
+                        "bodyShape" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][2],
+                        "attachment" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][5],
+                        "upperBodyClothing" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][3],
+                        "lowerBodyClothing" : tracklets[negativeImgIdxes[pIdx]]["attributes_names"][negative_idx][4]
+                    }
 
-                triplets.append({
-                    "positive" : positive,
-                    "negative" : negative,
-                    "anchor" : anchor
-                })
+                    triplets.append({
+                        "positive" : positive,
+                        "negative" : negative,
+                        "anchor" : anchor
+                    })
 
-        logger.info(F"total no of triplets {len(triplets)}")
-        return triplets
+            logger.info(F"total no of triplets {k} => {len(triplets)}")
+            out[k] = triplets
+        return out
 
 if __name__ == "__main__" :
     fileLocation = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat"
     rootDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/derived/wireframes"
     rapD = PreprocessRAPv2(fileLocation,rootDir)
-    rapD.describe()
-    # rapD.generateTriplets()()
+    # rapD.describe()
+    print(rapD.generateTriplets().keys())
