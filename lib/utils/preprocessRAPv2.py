@@ -170,9 +170,9 @@ class PreprocessRAPv2:
         attrs_out = []
 
         if int(attrs[0]) == 0 :
-            attrs_out.append("Female")
-        else :
             attrs_out.append("Male")
+        else :
+            attrs_out.append("Female")
 
         for i in range(len(attr_idx[:-1])) :
             try :

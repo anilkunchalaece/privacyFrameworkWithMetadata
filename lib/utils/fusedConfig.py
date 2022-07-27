@@ -18,7 +18,7 @@ FUSED_CONFIG = {
     "LOWER_BODY_CLOTHING_NUM_EMBED" : 23,
     "LOWER_BODY_CLOTHING_EMBED_DIM" : 6,
 
-    # Config fpr embed fc layers
+    # Config for embed fc layers
     "EMBED_FC1_OUT" : 128,
     "EMBED_FC2_OUT" : 256,
 

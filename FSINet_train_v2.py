@@ -10,16 +10,21 @@ import torchvision
 from sklearn.model_selection import train_test_split
 
 from lib.fsinet.FSINet import FusedSimilarityNet
-from lib.utils.fusedConfig import FUSED_CONFIG
+# from lib.utils.fusedConfig import FUSED_CONFIG
 from lib.utils.preprocessRAPv2 import *
 from lib.datasets.fusedDataset import FusedDataset
-
 
 import matplotlib.pyplot as plt
 import numpy as np
 import json
 from loguru import logger
 import argparse
+from functools import partial
+
+#imports for rayTune
+from ray import tune
+from ray.tune import CLIReporter 
+from ray.tune.schedulers import ASHAScheduler
 
 device = torch.device('cuda' if torch.cuda.is_available else 'cpu')
 torch.manual_seed(42)
@@ -28,28 +33,33 @@ logger.info(F"running with {device}")
 img_width = 60
 img_height = 120
 batchSize = 100
-N_EPOCH = 100
+N_EPOCH = 20
+LIMIT_DATA = False
 
-def train(args):
+def train(config,checkpoint_dir=None):
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Resize((img_height,img_width)),# height,width
                                     transforms.RandomRotation(degrees=45)])
     
     pr = PreprocessRAPv2(args.anon_file,args.src_imgs)    
     triplets = pr.generateTriplets()
-    train, valid = train_test_split(triplets,shuffle=True)
+
+    if LIMIT_DATA :
+        train, valid = train_test_split(triplets[:1000],shuffle=True)
+    else :
+        train, valid = train_test_split(triplets,shuffle=True)
 
     train_dataset = FusedDataset(args.src_imgs,train, transform)
     valid_dataset = FusedDataset(args.src_imgs,valid, transform)
 
-    train_dataloader = DataLoader(train_dataset,batch_size=batchSize,shuffle=True,drop_last=True)
-    valid_dataloader = DataLoader(valid_dataset,batch_size=batchSize,shuffle=True,drop_last=True)
+    train_dataloader = DataLoader(train_dataset,batch_size=config["batchSize"],shuffle=True,drop_last=True)
+    valid_dataloader = DataLoader(valid_dataset,batch_size=config["batchSize"],shuffle=True,drop_last=True)
 
-    model = FusedSimilarityNet(FUSED_CONFIG)
+    model = FusedSimilarityNet(config)
     model = model.to(device)
 
-    opt = torch.optim.Adam(model.parameters(),lr = 0.00001 )
-    criterion = nn.TripletMarginLoss(margin=0.1)
+    opt = torch.optim.Adam(model.parameters(),lr = config["lr"] )
+    criterion = nn.TripletMarginLoss(margin = config["margin"])
 
     # earlyStopping params
     patience = 10 # wait for this many epochs before stopping the training
@@ -113,31 +123,15 @@ def train(args):
 
         # collect losses
         _tl, _vl = np.mean(tl) , np.mean(vl)
-        lossDict["train"].append(_tl)
-        lossDict["valid"].append(_vl)
-        print(F"epoch:{epoch}, tl:{_tl}, vl:{_vl}")
 
-        # earlyStopping
-        if _vl < validLossPrev : # if there is a decrease in validLoss all is well 
-            badEpoch = 0 # reset bad epochs
+        with tune.checkpoint_dir(epoch) as checkpoint_dir:
+            path = os.path.join(checkpoint_dir, "checkpoint")
+            torch.save((model.state_dict(), opt.state_dict()), path)
+        
+        tune.report(
+            loss=_vl
+        )
 
-            #save model
-            torch.save(model.state_dict(),"models/FSINet.pth")
-
-        else :
-            if _vl - validLossPrev >= 0.0001 : # min delta
-                badEpoch = badEpoch + 1
-
-            if badEpoch >= patience :
-                print(F"Training stopped early due to overfitting in epoch {epoch}")
-                break
-        validLossPrev = _vl # store current valid loss
-
-    # dump losses into file
-    lossFileName = "fsiNet_losses.json"
-    with open(lossFileName,"w") as fd:
-        json.dump(lossDict,fd)
-    print(F"Training and validation losses are saved in {lossFileName}")
 
 
 def plotLoss():
@@ -155,6 +149,52 @@ def plotLoss():
         print(F"unable to open {fileName} with exception {str(e)}")
 
 
+def main(args,num_samples=10,max_num_epochs=50, gpus_per_trial=2):
+    config = {
+        # "l1": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
+        # "l2": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
+        "lr": tune.loguniform(1e-4, 1e-1),
+        "margin" : tune.loguniform(0.1,0.5),
+        "batchSize": tune.choice([25, 50, 100, 150]),
+        "GENDER_EMBED_DIM" : tune.choice([1,2]),
+        "AGE_EMBED_DIM" : tune.choice(range(2,6)),
+        "BODY_SHAPE_EMBED_DIM" : tune.choice(range(2,6)),
+        "ATTACHMENT_EMBED_DIM" : tune.choice(range(2,6)),
+        "UPPER_BODY_CLOTHING_EMBED_DIM" : tune.choice(range(2,6)),
+        "LOWER_BODY_CLOTHING_EMBED_DIM" : tune.choice(range(2,6)),
+        "GENDER_NUM_EMBED" : 2,
+        "AGE_NUM_EMBED" : 6,
+        "BODY_SHAPE_NUM_EMBED" : 6,
+        "ATTACHMENT_NUM_EMBED" : 11,
+        "UPPER_BODY_CLOTHING_NUM_EMBED" : 25,
+        "LOWER_BODY_CLOTHING_NUM_EMBED" : 23,
+        "EMBED_FC1_OUT" : tune.choice([128,256,512,1024]),
+        "EMBED_FC2_OUT" : tune.choice([128,256,512,1024]),
+        "RESNET_FC1_OUT" : tune.choice([128,256,512,1024]),
+        "RESNET_FC2_OUT" : tune.choice([128,256,512,1024]),
+        "FC1_OUT" : tune.choice([128,256,512,1024]),
+        "FC2_OUT" : tune.choice([128,256,512,1024]),
+    }
+
+    scheduler = ASHAScheduler(
+        metric="loss",
+        mode="min",
+        max_t=max_num_epochs,
+        grace_period=2,
+        reduction_factor=2)
+    
+    reporter = CLIReporter(
+        # parameter_columns=["l1", "l2", "lr", "batch_size"],
+        metric_columns=["loss", "training_iteration"])
+    
+    result = tune.run(
+        partial(train),
+        config=config,
+        resources_per_trial={"cpu": 6, "gpu": 1},
+        num_samples=num_samples,
+        scheduler=scheduler,
+        progress_reporter=reporter,
+        local_dir="tune_results")    
 
 
 if __name__ == "__main__" :
@@ -165,6 +205,6 @@ if __name__ == "__main__" :
     args = parser.parse_args()
 
     if args.func == "train" :
-        train(args)
+        main(args)
     elif args.func == "plot" :
         plotLoss()
