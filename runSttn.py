@@ -113,9 +113,9 @@ def read_frames_from_dir(dirName):
         if width != w or height != h :
             image = image.resize((w,h))        
         frames.append(image)
-    return frames
+    return frames,fileNames
 
-def main_worker(frames,masks,sIdx=0):
+def main_worker(frames,masks,fileNames,sIdx=0):
     # set up models 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(F"using {device}")
@@ -134,7 +134,7 @@ def main_worker(frames,masks,sIdx=0):
     video_length = len(frames)
     feats = _to_tensors(frames).unsqueeze(0)*2-1
     frames = [np.array(f).astype(np.uint8) for f in frames]
-
+    
     # masks = read_mask_from_dir(args.mask_dir)
     binary_masks = [np.expand_dims((np.array(m) != 0).astype(np.uint8), 2) for m in masks]
     masks = _to_tensors(masks).unsqueeze(0)
@@ -174,7 +174,8 @@ def main_worker(frames,masks,sIdx=0):
             np.uint8)*binary_masks[f] + frames[f] * (1-binary_masks[f])
         img = cv2.cvtColor(np.array(comp).astype(np.uint8), cv2.COLOR_BGR2RGB)
         # writer.write(img)
-        cv2.imwrite(os.path.join(args.output_dir,F"{f+sIdx:06d}.png"), img) # sIdx is used to keep names when running batches
+        # cv2.imwrite(os.path.join(args.output_dir,F"{f+sIdx:06d}.png"), img) # sIdx is used to keep names when running batches
+        cv2.imwrite(os.path.join(args.output_dir,fileNames[f]), img)
     # writer.release()
 
     # delete gpu variables and remove cache
@@ -186,14 +187,14 @@ def main_worker(frames,masks,sIdx=0):
     # print('Finish in video is {} and images saved in {}'.format(outVideoFile,args.output_dir))
 
 def main():
-    frames = read_frames_from_dir(args.image_dir)
+    frames,fileNames = read_frames_from_dir(args.image_dir)
     masks = read_mask_from_dir(args.mask_dir)
     BATCH_SIZE = 200 # change based on system capability 
     if len(frames) != len(masks) :
         raise(F"number of frames :{len(frames)} should be equal to number of masks : {len(masks)}")
     print(F"total number of images in dataset are {len(frames)}")
     if len(frames) < BATCH_SIZE :
-        main_worker(frames, masks)
+        main_worker(frames, masks,fileNames)
     else :
         for i in range(0,len(frames),BATCH_SIZE) :
             sIdx = i
@@ -203,7 +204,7 @@ def main():
                 eIdx = len(frames)
                 sIdx = len(frames) - BATCH_SIZE
             print(F"running for frames from {sIdx} to {eIdx}")
-            main_worker(frames[sIdx:eIdx],masks[sIdx:eIdx],sIdx)
+            main_worker(frames[sIdx:eIdx],masks[sIdx:eIdx],fileNames[sIdx:eIdx],sIdx)
 
 
 if __name__ == '__main__':

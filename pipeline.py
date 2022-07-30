@@ -272,8 +272,8 @@ if __name__ == "__main__":
     # args for BYTE Tracker
     parser.add_argument("--track_thresh", type=float, default=0.75, help="tracking confidence threshold")
     parser.add_argument("--track_buffer", type=int, default=5, help="the frames for keep lost tracks")
-    parser.add_argument("--match_thresh", type=float, default=0.8, help="matching threshold for tracking")
-    parser.add_argument('--min_box_area', type=float, default=10, help='filter out tiny boxes')
+    parser.add_argument("--match_thresh", type=float, default=0.75, help="matching threshold for tracking")
+    parser.add_argument('--min_box_area', type=float, default=2, help='filter out tiny boxes')
     parser.add_argument("--mot20", dest="mot20", default=False, help="test mot20.")
     
     #bbox image height and width

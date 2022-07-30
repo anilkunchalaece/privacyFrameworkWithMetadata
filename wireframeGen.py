@@ -74,8 +74,6 @@ class WireframeGen:
                     df["iNo"] = df.loc[:,"imageName"].apply(lambda f: int(re.sub('\D', '', f)))
                     df = df.loc[df["score"] >= 0.90]
                     img_shape = data["image_shape"]
-                    
-                    
 
                     # get bbox and frames per tid
                     tids = df["tid"].unique()
@@ -269,7 +267,7 @@ class WireframeGen:
         os.makedirs(outDirOrig,exist_ok=True)
 
         tester.render_results(pare_results, srcImgs, outDirOrig,
-                                  self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
+                                  self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)),use_background_img=True)
 
         # render with unified shape
         outDirUnifiedShape = os.path.join(outDir,"unifiedShape")
@@ -277,7 +275,7 @@ class WireframeGen:
 
         pare_results_uniform_shape = self.customShape(pare_results)
         tester.render_results(pare_results_uniform_shape, srcImgs, outDirUnifiedShape,
-                                  self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
+                                  self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)),use_background_img=True)
 
     # use PARE to generate wireframes
     def generateWireframesForMARS(self,srcImgs, personDetectionFile=None,outDir=None):

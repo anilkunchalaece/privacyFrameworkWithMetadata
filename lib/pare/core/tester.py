@@ -434,7 +434,7 @@ class PARETester:
         return pare_results
 
     def render_results(self, pare_results, image_folder, output_img_folder,
-                       orig_width, orig_height, num_frames,use_single_mesh_color=True):
+                       orig_width, orig_height, num_frames,use_single_mesh_color=True,use_background_img=False):
         # ========= Render results as a single video ========= #
         renderer = Renderer(
             resolution=(orig_width, orig_height),
@@ -448,17 +448,18 @@ class PARETester:
         frame_results = prepare_rendering_results(pare_results, num_frames)
         mesh_color = {k: colorsys.hsv_to_rgb(np.random.rand(), 0.5, 1.0) for k in pare_results.keys()}
         
-        # image_file_names = sorted([
-        #     os.path.join(image_folder, x)
-        #     for x in os.listdir(image_folder)
-        #     if x.endswith('.png') or x.endswith('.jpg')
-        # ],key=lambda f: int(re.sub('\D', '', f)))
+        image_file_names = sorted([
+            os.path.join(image_folder, x)
+            for x in os.listdir(image_folder)
+            if x.endswith('.png') or x.endswith('.jpg')
+        ],key=lambda f: int(re.sub('\D', '', f)))
 
-        image_file_names = [os.path.join(image_folder,f) for f in os.listdir(image_folder)]
+        # image_file_names = [os.path.join(image_folder,f) for f in os.listdir(image_folder)]
 
         # for frame_idx in tqdm(range(len(image_file_names))):
         for img_fname in image_file_names:
-
+            if use_background_img :
+                img_fname = img_fname.replace("src/orig_images_scaled", "background")
             img = cv2.imread(img_fname)
 
             if self.args.sideview:
