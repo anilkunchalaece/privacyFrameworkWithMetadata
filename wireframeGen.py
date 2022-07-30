@@ -76,8 +76,6 @@ class WireframeGen:
                     df = df.loc[df["score"] >= 0.90]
                     img_shape = data["image_shape"]
                     
-                    
-
                     # get bbox and frames per tid
                     tids = df["tid"].unique()
                     for t in tids :
@@ -147,8 +145,9 @@ class WireframeGen:
 
         x_scale = self.out_img_width/self.in_img_width
         y_scale = self.out_img_height/self.in_img_height
-
+        
         for bbox in bboxes :
+            # print(F"original {bbox}")
             bbox[0] = bbox[0]*x_scale
             bbox[1] = bbox[1]*x_scale 
             bbox[2] = bbox[2]*y_scale
@@ -163,6 +162,8 @@ class WireframeGen:
             
             scaled_bboxes_yolo.append([c_x, c_y, w, h])
             scaled_bboxes_pascal.append(bbox)
+            # print(F"scaled {bbox}")
+
 
         return {
             "scaled_yolo" : np.array(scaled_bboxes_yolo),
@@ -229,7 +230,6 @@ class WireframeGen:
         self.generateBackgroundImgs(srcImgs)
 
         dets = self.loadDetections(personDetectionFile)
-
         # sys.exit()
         # draw bbox for resized imgs just to check
         # use pascal bboxes for drawing bboxes - why ? I'm lazy :)
@@ -239,9 +239,8 @@ class WireframeGen:
 
             for d in dets.keys() :
                 for idx, f in enumerate(dets[d]["frames"]) : 
-                    f = F"{f}.{os.listdir(srcImgs)[0].split('.')[-1]}"
+                    f = F"{f:06d}.{os.listdir(srcImgs)[0].split('.')[-1]}"
                     tlbr = [int(b) for b in dets[d]["bbox_pascal"][idx]]
-                    # print(tlbr)
                     if os.path.isfile(os.path.join(bboxDir,f)) :
                         srcImg = cv2.imread(os.path.join(bboxDir,f))
                         # print(srcImg.shape)
@@ -270,7 +269,7 @@ class WireframeGen:
         os.makedirs(outDirOrig,exist_ok=True)
 
         tester.render_results(pare_results, srcImgs, outDirOrig,
-                                  self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
+                                  self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)),use_background_img=True)
 
         # render with unified shape
         outDirUnifiedShape = os.path.join(outDir,"unifiedShape")
@@ -278,7 +277,7 @@ class WireframeGen:
 
         pare_results_uniform_shape = self.customShape(pare_results)
         tester.render_results(pare_results_uniform_shape, srcImgs, outDirUnifiedShape,
-                                  self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)))
+                                  self.out_img_width, self.out_img_height, len(os.listdir(srcImgs)),use_background_img=True)
 
     # use PARE to generate wireframes
     def generateWireframesForMARS(self,srcImgs, personDetectionFile=None,outDir=None,tester=None):

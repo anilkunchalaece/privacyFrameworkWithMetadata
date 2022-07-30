@@ -53,15 +53,13 @@ class MetadataGenerator:
     def runByteTracker(self):
         dets = self.getPersonDetections()
         tracker = BYTETracker(args)
-
+        
         results = []
         for idx, det in enumerate(dets["personDetections"]):
             # ref - https://github.com/ifzhang/ByteTrack/issues/23
             #  img_info is the origin size and img_size is the inference size.
             online_targets = tracker.update(det["detections"], dets["img_shape"], dets["img_shape"])
-            
             srcImg = cv2.imread(det['img_name']) if args.draw_bbox == True else None
-
             for t in online_targets:
                 tlwh = t.tlwh
                 tlbr = [ int(x) for x in t.tlbr.tolist()]
@@ -237,19 +235,21 @@ class MetadataGenerator:
     
 def renameSrcDir(srcDir) :
     # Check fileNames -> files should start with 0, if not rename them
-    fList = sorted(os.listdir(srcDir))
+    fList = sorted(os.listdir(srcDir), key= lambda f: int(f.split(".")[0]))
     startIdx = int(fList[0].split(".")[0])
     endIdx = int(fList[-1].split(".")[0])
-
+    # print(F"hi there {startIdx}")
     if startIdx != 0 :
+        # print("startIdx not zero")
         for f in fList :
             srcName = os.path.join(srcDir,f)
-            desName = os.path.join(srcDir,F"{int(f.split('.')[0]) - 1}.{f.split('.')[-1]}")
+            desName = os.path.join(srcDir,F"{int(f.split('.')[0]) - startIdx:06d}.{f.split('.')[-1]}")
+            # print(srcName, desName)
             shutil.move(srcName,desName)    
 
 def main(args):
     torch.cuda.empty_cache()
-    # renameSrcDir(args.src_imgs)
+    renameSrcDir(args.src_imgs)
     mg = MetadataGenerator(args)
     mg.generateMetadaForEachImg()
     mg.generateWireframes()
@@ -298,9 +298,9 @@ if __name__ == "__main__":
     parser.add_argument("--det_file", type=str,help="detection file", default=None)
 
     # args for BYTE Tracker
-    parser.add_argument("--track_thresh", type=float, default=0.75, help="tracking confidence threshold")
+    parser.add_argument("--track_thresh", type=float, default=0.5, help="tracking confidence threshold")
     parser.add_argument("--track_buffer", type=int, default=5, help="the frames for keep lost tracks")
-    parser.add_argument("--match_thresh", type=float, default=0.8, help="matching threshold for tracking")
+    parser.add_argument("--match_thresh", type=float, default=0.75, help="matching threshold for tracking")
     parser.add_argument('--min_box_area', type=float, default=10, help='filter out tiny boxes')
     parser.add_argument("--mot20", dest="mot20", default=False, help="test mot20.")
     
@@ -318,9 +318,9 @@ if __name__ == "__main__":
                         help='tracking method to calculate the tracklet of a subject from the input video')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size of PARE')
     parser.add_argument('--display', action='store_true', help='visualize the results of each step during demo')
-    parser.add_argument('--smooth', action='store_true', help='smooth the results to prevent jitter')
-    parser.add_argument('--min_cutoff', type=float, default=0.004, help='one euro filter min cutoff, Decreasing the minimum cutoff frequency decreases slow speed jitter')
-    parser.add_argument('--beta', type=float, default=1.0, help='one euro filter beta. Increasing the speed coefficient(beta) decreases speed lag.')
+    parser.add_argument('--smooth', action='store_true', help='smooth the results to prevent jitter',default=True)
+    parser.add_argument('--min_cutoff', type=float, default=0.00001, help='one euro filter min cutoff, Decreasing the minimum cutoff frequency decreases slow speed jitter')
+    parser.add_argument('--beta', type=float, default=5.0, help='one euro filter beta. Increasing the speed coefficient(beta) decreases speed lag.')
     parser.add_argument('--no_render', action='store_true', help='disable final rendering of output video.')
     parser.add_argument('--no_save', action='store_true', help='disable final save of output results.')
     parser.add_argument('--wireframe', action='store_true', help='render all meshes as wireframes.')
