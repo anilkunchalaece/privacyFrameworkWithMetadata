@@ -33,7 +33,7 @@ class Inference(Dataset):
             osp.join(image_folder, x)
             for x in os.listdir(image_folder)
             if x.endswith('.png') or x.endswith('.jpg') or x.endswith('.jpeg')
-        ],key=lambda f: int(f.split(".")[0][-3:]))
+        ],key=lambda f: int(os.path.basename(f).split(".")[0]))
         # print(self.image_file_names)
         # print(image_folder)
         # self.image_file_names = [ os.path.join(image_folder,F"{y}.{os.listdir(image_folder)[0].split('.')[-1]}") for y in sorted([os.path.basename(x) for x in self.image_file_names],key=lambda f: int(re.sub('\D', '', f)))]
@@ -71,11 +71,11 @@ class Inference(Dataset):
                 self.frames = frames[time_pt1:time_pt2]
 
     def __len__(self):
-        return len(self.image_file_names)
+        # return len(self.image_file_names)
+        return len(self.frames)
 
     def __getitem__(self, idx):
         img = cv2.cvtColor(cv2.imread(self.image_file_names[idx]), cv2.COLOR_BGR2RGB)
-
         bbox = self.bboxes[idx]
 
         j2d = self.joints2d[idx] if self.has_keypoints else None

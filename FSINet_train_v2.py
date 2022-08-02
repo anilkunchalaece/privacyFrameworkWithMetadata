@@ -34,8 +34,8 @@ logger.info(F"running with {device}")
 img_width = 60
 img_height = 120
 batchSize = 100
-N_EPOCH = 100
-LIMIT_DATA = False
+N_EPOCH = 10
+LIMIT_DATA = True
 
 def train(config,checkpoint_dir=None):
     transform = transforms.Compose([transforms.ToTensor(),
@@ -154,7 +154,32 @@ def plotLoss():
 
 
 def main(args,num_samples=10,max_num_epochs=20, gpus_per_trial=2):
-    config = {
+    # config = {
+    #     # "l1": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
+    #     # "l2": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
+    #     "lr": 0.005,
+    #     "margin" : 0.10,
+    #     "batchSize": 100,
+    #     "GENDER_EMBED_DIM" : 2,
+    #     "AGE_EMBED_DIM" : 4,
+    #     "BODY_SHAPE_EMBED_DIM" : 2,
+    #     "ATTACHMENT_EMBED_DIM" :4,
+    #     "UPPER_BODY_CLOTHING_EMBED_DIM" :  4,
+    #     "LOWER_BODY_CLOTHING_EMBED_DIM" :  4,
+    #     "GENDER_NUM_EMBED" : 2,
+    #     "AGE_NUM_EMBED" : 6,
+    #     "BODY_SHAPE_NUM_EMBED" : 6,
+    #     "ATTACHMENT_NUM_EMBED" : 11,
+    #     "UPPER_BODY_CLOTHING_NUM_EMBED" : 25,
+    #     "LOWER_BODY_CLOTHING_NUM_EMBED" : 23,
+    #     "EMBED_FC1_OUT" : tune.grid_search([256,512,1024]),
+    #     "EMBED_FC2_OUT" : tune.grid_search([256,512,1024]),
+    #     "RESNET_FC1_OUT" : tune.grid_search([256,512,1024]),
+    #     "RESNET_FC2_OUT" : tune.grid_search([256,512,1024]),
+    #     "FC1_OUT" : tune.grid_search([256,512,1024]),
+    #     "FC2_OUT" : tune.grid_search([256,512,1024]),
+    # }
+    config_old = {
         # "l1": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
         # "l2": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
         "lr": tune.loguniform(1e-4, 1e-1),
@@ -179,7 +204,6 @@ def main(args,num_samples=10,max_num_epochs=20, gpus_per_trial=2):
         "FC1_OUT" : tune.choice([128,256,512,1024]),
         "FC2_OUT" : tune.choice([128,256,512,1024]),
     }
-
     scheduler = ASHAScheduler(
         metric="loss",
         mode="min",
@@ -210,6 +234,8 @@ def main(args,num_samples=10,max_num_epochs=20, gpus_per_trial=2):
         best_trial.last_result["loss"]))
     print("Best trial final validation accuracy: {}".format(
         best_trial.last_result["tloss"]))
+    best_checkpoint_value = best_trial.checkpoint.value
+    print(F"best checkpoint value {best_checkpoint_value}")
 
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()

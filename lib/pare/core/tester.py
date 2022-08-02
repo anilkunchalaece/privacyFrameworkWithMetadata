@@ -332,7 +332,7 @@ class PARETester:
     def run_on_video(self, tracking_results, image_folder, orig_width, orig_height, bbox_scale=1.0):
         # ========= Run PARE on each person ========= #
         logger.info(f'Running PARE on each tracklet...')
-
+        # print(list(tracking_results.keys()))
         pare_results = {}
         for person_id in tqdm(list(tracking_results.keys())):
             bboxes = joints2d = None
@@ -344,7 +344,7 @@ class PARETester:
 
             # frames = [ int(f.split(".")[0]) for f in tracking_results[person_id]['frames']]
             frames = tracking_results[person_id]['frameNames']
-            
+
             dataset = Inference(
                 image_folder=image_folder,
                 frames=frames,
@@ -355,6 +355,8 @@ class PARETester:
 
             bboxes = dataset.bboxes
             frames = dataset.frames
+
+
             has_keypoints = True if joints2d is not None else False
 
             dataloader = DataLoader(dataset, batch_size=self.args.batch_size, num_workers=1)
@@ -434,7 +436,7 @@ class PARETester:
         return pare_results
 
     def render_results(self, pare_results, image_folder, output_img_folder,
-                       orig_width, orig_height, num_frames,use_single_mesh_color=True):
+                       orig_width, orig_height, num_frames,use_single_mesh_color=True,use_background_img=False):
         # ========= Render results as a single video ========= #
         renderer = Renderer(
             resolution=(orig_width, orig_height),
@@ -448,21 +450,25 @@ class PARETester:
         frame_results = prepare_rendering_results(pare_results, num_frames)
         mesh_color = {k: colorsys.hsv_to_rgb(np.random.rand(), 0.5, 1.0) for k in pare_results.keys()}
         
-        # image_file_names = sorted([
-        #     os.path.join(image_folder, x)
-        #     for x in os.listdir(image_folder)
-        #     if x.endswith('.png') or x.endswith('.jpg')
-        # ],key=lambda f: int(re.sub('\D', '', f)))
+        image_file_names = sorted([
+            os.path.join(image_folder, x)
+            for x in os.listdir(image_folder)
+            if x.endswith('.png') or x.endswith('.jpg')
+        ],key=lambda f: int(re.sub('\D', '', f)))
 
-        image_file_names = [os.path.join(image_folder,f) for f in os.listdir(image_folder)]
-
+        # image_file_names = [os.path.join(image_folder,f) for f in os.listdir(image_folder)]
+        # print(image_file_names)
         # for frame_idx in tqdm(range(len(image_file_names))):
         for img_fname in image_file_names:
-
-            img = cv2.imread(img_fname)
+            if use_background_img :
+                img = cv2.imread(img_fname.replace("src/orig_images_scaled","background").replace(".jpg",".png"))
+            else :
+                img = cv2.imread(img_fname)
 
             if self.args.sideview:
                 side_img = np.zeros_like(img)
+
+            # print(frame_results.keys())
 
             for person_id, person_data in frame_results[os.path.basename(img_fname)].items():
                 frame_verts = person_data['verts']
