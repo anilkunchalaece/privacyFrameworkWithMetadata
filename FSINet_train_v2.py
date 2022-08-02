@@ -210,6 +210,8 @@ def main(args,num_samples=10,max_num_epochs=20, gpus_per_trial=2):
         best_trial.last_result["loss"]))
     print("Best trial final validation accuracy: {}".format(
         best_trial.last_result["tloss"]))
+    best_checkpoint_value = best_trial.checkpoint.value
+    print(F"best checkpoint value {best_checkpoint_value}")
 
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()

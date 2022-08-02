@@ -229,7 +229,7 @@ class MetadataGenerator:
     def generateWireframes(self,mars=False,tester=None):
         wg = WireframeGen(self.args)
         if mars == False :
-            wg.generateWireframes(self.args.src_imgs)
+            wg.generateWireframes(self.args.src_imgs,useRunPare=True)
         else :
             wg.generateWireframesForMARS(self.args.src_imgs,tester=tester)
     

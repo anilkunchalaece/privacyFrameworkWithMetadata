@@ -25,11 +25,13 @@ import argparse
 from loguru import logger
 
 sys.path.append('.')
-from lib.pare.core.tester import PARETester
-from lib.pare.utils.demo_utils import (
+from pare.core.tester import PARETester
+from pare.utils.demo_utils import (
     download_youtube_clip,
     video_to_images,
     images_to_video,
+    renameSrcDir,
+    customShape
 )
 
 CFG = 'data/pare/checkpoints/pare_w_3dpw_config.yaml'
@@ -86,6 +88,23 @@ def main(args):
     elif demo_mode == 'webcam':
         logger.error('Webcam demo is not implemented!..')
         raise NotImplementedError
+    elif demo_mode == "img_seq" :
+        renameSrcDir(args.src_dir)
+        input_image_folder = args.src_dir
+        num_frames = len(os.listdir(args.src_dir))
+        img_shape = cv2.imread(os.path.join(args.src_dir, os.listdir(args.src_dir)[0])).shape
+
+        output_path = os.path.join(args.output_folder, input_image_folder.rstrip('/').split('/')[-1] + '_' + args.exp)
+        os.makedirs(output_path, exist_ok=True)
+
+        output_img_folder = os.path.join(output_path, 'pare_results')
+        os.makedirs(output_img_folder, exist_ok=True)
+
+        output_img_folder_custom_shape = os.path.join(output_path, 'pare_results_custom_shape')
+        os.makedirs(output_img_folder_custom_shape, exist_ok=True)
+
+        video_file = None
+
     else:
         raise ValueError(f'{demo_mode} is not a valid demo mode.')
 
@@ -104,8 +123,7 @@ def main(args):
         orig_height, orig_width = img_shape[:2]
         total_time = time.time()
         tracking_results = tester.run_tracking(video_file, input_image_folder)
-        print(tracking_results)
-        return
+        
         pare_time = time.time()
         pare_results = tester.run_on_video(tracking_results, input_image_folder, orig_width, orig_height)
         end = time.time()
@@ -144,6 +162,7 @@ def main(args):
 
         total_time = time.time()
         detections = tester.run_detector(input_image_folder)
+        print(detections)
         pare_time = time.time()
         tester.run_on_image_folder(input_image_folder, detections, output_path, output_img_folder)
         end = time.time()
@@ -157,8 +176,50 @@ def main(args):
         logger.info(f'Total time spent: {total_time:.2f} seconds (including model loading time).')
         logger.info(f'Total FPS (including model loading time): {num_frames / total_time:.2f}.')
 
+    if args.mode == 'img_seq':
+        logger.info(f'Input video number of frames {num_frames}')
+        orig_height, orig_width = img_shape[:2]
+        total_time = time.time()
+        tracking_results = tester.run_tracking(video_file, input_image_folder)
+        
+        pare_time = time.time()
+        pare_results = tester.run_on_video(tracking_results, input_image_folder, orig_width, orig_height)
+        end = time.time()
 
-    logger.info('================= END =================')    
+        fps = num_frames / (end - pare_time)
+
+        del tester.model
+
+        logger.info(f'PARE FPS: {fps:.2f}')
+        total_time = time.time() - total_time
+        logger.info(f'Total time spent: {total_time:.2f} seconds (including model loading time).')
+        logger.info(f'Total FPS (including model loading time): {num_frames / total_time:.2f}.')
+
+        if not args.no_save:
+            logger.info(f'Saving output results to \"{os.path.join(output_path, "pare_output.pkl")}\".')
+            joblib.dump(pare_results, os.path.join(output_path, "pare_output.pkl"))
+
+        if not args.no_render:
+            tester.render_results(pare_results, input_image_folder, output_img_folder, output_path,
+                                  orig_width, orig_height, num_frames)
+            
+            pare_results_custom_shape = customShape(pare_results)
+
+            tester.render_results(pare_results_custom_shape, input_image_folder, output_img_folder_custom_shape, output_path,
+                                  orig_width, orig_height, num_frames)
+
+            # ========= Save rendered video ========= #
+            vid_name = "out_video"
+            save_name = f'{vid_name.replace(".mp4", "")}_{args.exp}_result.mp4'
+            save_name = os.path.join(output_path, save_name)
+            logger.info(f'Saving result video to {save_name}')
+            images_to_video(img_folder=output_img_folder, output_vid_file=save_name)
+
+            # Save the input video as well
+            images_to_video(img_folder=input_image_folder, output_vid_file=os.path.join(output_path, vid_name))
+            # shutil.rmtree(output_img_folder)
+
+    logger.info('================= END =================')
 
 
 if __name__ == '__main__':
@@ -173,8 +234,11 @@ if __name__ == '__main__':
     parser.add_argument('--exp', type=str, default='',
                         help='short description of the experiment')
 
-    parser.add_argument('--mode', default='video', choices=['video', 'folder', 'webcam'],
+    parser.add_argument('--mode', default='video', choices=['video', 'folder', 'webcam', 'img_seq'],
                         help='Demo type')
+
+    parser.add_argument('--src_dir', type=str,
+                        help="input dir with image sequences")
 
     parser.add_argument('--vid_file', type=str,
                         help='input video path or youtube link')

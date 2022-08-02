@@ -73,7 +73,7 @@ class WireframeGen:
                     # df["iNo"] = df.loc[:,"imageName"].apply(lambda x: int(x.split('.')[0]))
                     # df["iNo"] = df.loc[:,"imageName"].apply(lambda f: int(re.sub('\D', '', f)))
                     df["iNo"] = df.loc[:,"imageName"].apply(lambda f: int(f.split(".")[0][-3:]))
-                    df = df.loc[df["score"] >= 0.90]
+                    df = df.loc[df["score"] >= 0.75]
                     img_shape = data["image_shape"]
                     
                     # get bbox and frames per tid
@@ -202,17 +202,14 @@ class WireframeGen:
         cmd = " ".join(cmd)
         os.system(cmd)
 
+    def runPare(self,srcImgs,outDir) :
+        srcImgs = os.path.join(self.args.tmp_dir,"src","orig_images_scaled")
+        cmd = ["python","runPare.py","--src_dir",srcImgs,"--mode","img_seq","--output_folder",outDir]
+        cmd = " ".join(cmd)
+        os.system(cmd)        
 
     # use PARE to generate wireframes
-    def generateWireframes(self,srcImgs, personDetectionFile=None,outDir=None):
-
-        if outDir == None :
-            # Create outDir
-            outDir = os.path.join(self.args.tmp_dir,"pred")
-            os.makedirs(outDir,exist_ok=True)
-        
-        if personDetectionFile == None :
-            personDetectionFile = os.path.join(self.args.tmp_dir,"personDetectionResults.json")
+    def generateWireframes(self,srcImgs, personDetectionFile=None,outDir=None,useRunPare=False):
 
         # check image size in srcImgs
         # if size does not match resize all the images 
@@ -228,6 +225,19 @@ class WireframeGen:
         # generate background images
         logger.info(F"Generating the background images fro {srcImgs}")
         self.generateBackgroundImgs(srcImgs)
+
+        if outDir == None :
+            # Create outDir
+            outDir = os.path.join(self.args.tmp_dir,"pred")
+            os.makedirs(outDir,exist_ok=True)
+
+        if useRunPare == True:
+            # run it via commdand line using PARE 
+            self.runPare(srcImgs,outDir)        
+            return
+
+        if personDetectionFile == None :
+            personDetectionFile = os.path.join(self.args.tmp_dir,"personDetectionResults.json")
 
         dets = self.loadDetections(personDetectionFile)
         # sys.exit()
