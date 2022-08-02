@@ -73,6 +73,12 @@
 - Common shape used for meshes
   - `avg_shape = np.array([[0.00495731,-0.00761945,-0.01329031,-0.01045073,0.02202598,0.0265389 ,-0.01466284,-0.01419266,-0.02254305,-0.010054 ]])`
 
+## Tuning
+Ran 1000 combinations for the hyperparameters 
+You can find the ray logs in `Result logdir: /home/ICTDOMAIN/d20125529/privacyFrameworkWithMetadata/tune_results/train_2022-07-28_06-18-05`
+Following is the best config from those combinations
+![ray tuning 1000 combinations - best config](readMeImgs/bestConfigOf1000RayTune.png)
+
 
 ## Useful functions
   1. 'checkTrackAttrs()'
