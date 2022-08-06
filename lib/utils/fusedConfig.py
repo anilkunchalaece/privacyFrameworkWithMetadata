@@ -27,5 +27,5 @@ FUSED_CONFIG = {
     "RESNET_FC2_OUT" : 256,
 
     "FC1_OUT" : 1024,
-    "FC2_OUT" : 256
+    "FC2_OUT" : 512
 }
