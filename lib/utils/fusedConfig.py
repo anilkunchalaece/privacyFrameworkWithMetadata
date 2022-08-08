@@ -20,12 +20,14 @@ FUSED_CONFIG = {
 
     # Config for embed fc layers
     "EMBED_FC1_OUT" : 128,
-    "EMBED_FC2_OUT" : 256,
+    "EMBED_FC2_OUT" : 512,
 
     # Config for resnet fc layers
     "RESNET_FC1_OUT" : 1024,
-    "RESNET_FC2_OUT" : 256,
+    "RESNET_FC2_OUT" : 512,
 
     "FC1_OUT" : 1024,
-    "FC2_OUT" : 256
+    "FC2_OUT" : 512,
+    
+    "FUSED" : False
 }

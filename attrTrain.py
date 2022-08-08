@@ -165,7 +165,9 @@ def infer(args):
         transforms.Resize((args.img_height,args.img_width)),
     ])
 
-    inferDataset = AttrDatasetInference(args.attr_infer_dir, transform_infer)
+    
+    attr_infer_dir = os.path.join(args.tmp_dir,"tracklets")
+    inferDataset = AttrDatasetInference(attr_infer_dir, transform_infer)
 
 
     inferDataLoader = DataLoader(inferDataset,batch_size=args.batch_size,shuffle=True,drop_last=False)
@@ -221,7 +223,7 @@ if __name__ == "__main__" :
     parser.add_argument("--tmp_dir", type=str,help="tmp dir to store intermediate files", required=False, default="tmp")
     
     # args for inference
-    parser.add_argument("--attr_infer_dir", type=str, help="dir contains tracklets for inference",required=False, default="tmp/tracklets")
+    # parser.add_argument("--attr_infer_dir", type=str, help="dir contains tracklets for inference",required=False, default="tmp/tracklets")
     parser.add_argument("--attr_trained_model", type=str, help="path to trained model",required=False, default="models/attrnet_ckpt_975.pth")
 
     args = parser.parse_args()

@@ -66,8 +66,7 @@ def get_ref_index(neighbor_ids, length):
 # read frame-wise masks 
 def read_mask_from_dir(mpath):
     masks = []
-    mnames = os.listdir(mpath)
-    mnames.sort()
+    mnames = sorted(os.listdir(mpath),key= lambda x: int(x.split(".")[0]))
     for m in mnames: 
         m = Image.open(os.path.join(mpath, m))
         
@@ -82,6 +81,22 @@ def read_mask_from_dir(mpath):
         masks.append(Image.fromarray(m*255))
     return masks
 
+# read frame-wise masks 
+def read_masks_from_list(lst):
+    masks = []
+    for m in lst: 
+        m = Image.open(m)
+        
+        width, height  = m.size
+        if width != w or height != h :
+            m = m.resize((w, h))   
+        
+        m = np.array(m.convert('L'))
+        m = np.array(m > 0).astype(np.uint8)
+        m = cv2.dilate(m, cv2.getStructuringElement(
+            cv2.MORPH_CROSS, (3, 3)), iterations=4)
+        masks.append(Image.fromarray(m*255))
+    return masks
 
 #  read frames from video 
 def read_frame_from_videos(vname):
@@ -104,7 +119,7 @@ def read_frame_from_videos(vname):
 # read images from dir
 def read_frames_from_dir(dirName):
     frames = []
-    fileNames = sorted(os.listdir(dirName))
+    fileNames = sorted(os.listdir(dirName),key= lambda x: int(x.split(".")[0]))
     for fName in fileNames :
         # print(fName)
         image = Image.open(os.path.join(dirName,fName))
@@ -114,6 +129,18 @@ def read_frames_from_dir(dirName):
             image = image.resize((w,h))        
         frames.append(image)
     return frames
+
+def read_frames_from_list(lst) :
+    frames = []
+    for fName in lst :
+        # print(fName)
+        image = Image.open(fName)
+        # image = Image.fromarray(cv2.cvtColor(Image.open(os.path.join(dirName,fName)), cv2.COLOR_BGR2RGB))
+        width, height  = image.size
+        if width != w or height != h :
+            image = image.resize((w,h))        
+        frames.append(image)
+    return frames    
 
 def main_worker(frames,masks,sIdx=0):
     # set up models 
@@ -186,24 +213,29 @@ def main_worker(frames,masks,sIdx=0):
     # print('Finish in video is {} and images saved in {}'.format(outVideoFile,args.output_dir))
 
 def main():
-    frames = read_frames_from_dir(args.image_dir)
-    masks = read_mask_from_dir(args.mask_dir)
-    BATCH_SIZE = 200 # change based on system capability 
-    if len(frames) != len(masks) :
-        raise(F"number of frames :{len(frames)} should be equal to number of masks : {len(masks)}")
-    print(F"total number of images in dataset are {len(frames)}")
-    if len(frames) < BATCH_SIZE :
+    # frames = read_frames_from_dir(args.image_dir)
+    # masks = read_mask_from_dir(args.mask_dir)
+    frames_names = [ os.path.join(args.image_dir,f) for f in sorted(os.listdir(args.image_dir),key= lambda x: int(x.split(".")[0]))]
+    masks_names = [ os.path.join(args.mask_dir,f) for f in sorted(os.listdir(args.mask_dir),key= lambda x: int(x.split(".")[0]))]
+
+    BATCH_SIZE = 150 # change based on system capability 
+    if len(frames_names) != len(masks_names) :
+        raise(F"number of frames :{len(frames_names)} should be equal to number of masks : {len(masks_names)}")
+    print(F"total number of images in dataset are {len(frames_names)}")
+    if len(frames_names) < BATCH_SIZE :
+        frames = read_frames_from_list(frames_names)
+        masks = read_masks_from_list(masks_names)
         main_worker(frames, masks)
     else :
-        for i in range(0,len(frames),BATCH_SIZE) :
+        for i in range(0,len(frames_names),BATCH_SIZE) :
             sIdx = i
             eIdx = i + BATCH_SIZE
             # for last set of frames we are taking the last 200 frames ,eventhough it may run model on few same images , we will get better results 
-            if eIdx >= len(frames) :
-                eIdx = len(frames)
-                sIdx = len(frames) - BATCH_SIZE
+            if eIdx >= len(frames_names) :
+                eIdx = len(frames_names)
+                sIdx = len(frames_names) - BATCH_SIZE
             print(F"running for frames from {sIdx} to {eIdx}")
-            main_worker(frames[sIdx:eIdx],masks[sIdx:eIdx],sIdx)
+            main_worker(read_frames_from_list(frames_names[sIdx:eIdx]),read_masks_from_list(masks_names[sIdx:eIdx]),sIdx)
 
 
 if __name__ == '__main__':

@@ -412,7 +412,8 @@ class PARETester:
             img_fname = image_file_names[frame_idx]
 
             if use_background_img :
-                background_img_path =  os.path.join(output_path.split("/")[0],"background")
+                background_img_path =  os.path.join("/".join(output_path.split("/")[:-1]),"background")
+                # print(background_img_path)
                 background_img_type = os.listdir(background_img_path)[0].split(".")[-1]
                 img_fname = os.path.join(background_img_path,F"{os.path.basename(img_fname).split('.')[0]}.{background_img_type}")
 
