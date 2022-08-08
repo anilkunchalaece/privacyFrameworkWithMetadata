@@ -27,17 +27,19 @@ logger.info(F"running with {device}")
 
 img_width = 60
 img_height = 120
-batchSize = 100
+batchSize = 10
 N_EPOCH = 100
 
 def train(args):
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Resize((img_height,img_width)),# height,width
+                                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)),
                                     transforms.RandomRotation(degrees=45)])
     
     pr = PreprocessRAPv2(args.anon_file,args.src_imgs)    
     triplets = pr.generateTriplets()
-    train, valid = train_test_split(triplets,shuffle=True)
+    # train, valid = train_test_split(triplets,shuffle=True)
+    train , valid, test = triplets["train"] , triplets["val"], triplets["test"]
 
     train_dataset = FusedDataset(args.src_imgs,train, transform)
     valid_dataset = FusedDataset(args.src_imgs,valid, transform)
@@ -48,8 +50,8 @@ def train(args):
     model = FusedSimilarityNet(FUSED_CONFIG)
     model = model.to(device)
 
-    opt = torch.optim.Adam(model.parameters(),lr = 0.00001 )
-    criterion = nn.TripletMarginLoss(margin=0.1)
+    opt = torch.optim.Adam(model.parameters(),lr = 1e-4)
+    criterion = nn.TripletMarginLoss(margin=0.2)
 
     # earlyStopping params
     patience = 10 # wait for this many epochs before stopping the training
@@ -117,15 +119,19 @@ def train(args):
         lossDict["valid"].append(_vl)
         print(F"epoch:{epoch}, tl:{_tl}, vl:{_vl}")
 
+        if FUSED_CONFIG["FUSED"] == True :
+            mName = "FSINet_fused" 
+        else :
+            mName = "FSINet_image_only"
+
         # earlyStopping
         if _vl < validLossPrev : # if there is a decrease in validLoss all is well 
             badEpoch = 0 # reset bad epochs
-
             #save model
-            torch.save(model.state_dict(),"models/FSINet.pth")
+            torch.save(model.state_dict(),F"models/{mName}e{epoch}.pth")
 
         else :
-            if _vl - validLossPrev >= 0.0001 : # min delta
+            if _vl - validLossPrev >= 0.000001 : # min delta
                 badEpoch = badEpoch + 1
 
             if badEpoch >= patience :
@@ -134,14 +140,14 @@ def train(args):
         validLossPrev = _vl # store current valid loss
 
     # dump losses into file
-    lossFileName = "fsiNet_losses.json"
+    lossFileName = F"{mName}_losses.json"
     with open(lossFileName,"w") as fd:
         json.dump(lossDict,fd)
     print(F"Training and validation losses are saved in {lossFileName}")
 
 
 def plotLoss():
-    fileName = "fsiNet_losses.json"
+    fileName = "FSINet_fused_losses.json"
     try :
         with open(fileName) as fd:
             d = json.load(fd)

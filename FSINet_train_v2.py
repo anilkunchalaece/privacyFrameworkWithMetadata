@@ -34,7 +34,7 @@ logger.info(F"running with {device}")
 img_width = 60
 img_height = 120
 batchSize = 100
-N_EPOCH = 10
+N_EPOCH = 5
 LIMIT_DATA = True
 
 def train(config,checkpoint_dir=None):
@@ -153,7 +153,7 @@ def plotLoss():
         print(F"unable to open {fileName} with exception {str(e)}")
 
 
-def main(args,num_samples=10,max_num_epochs=20, gpus_per_trial=2):
+def main(args,num_samples=100,max_num_epochs=5, gpus_per_trial=2):
     # config = {
     #     # "l1": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
     #     # "l2": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
@@ -172,25 +172,25 @@ def main(args,num_samples=10,max_num_epochs=20, gpus_per_trial=2):
     #     "ATTACHMENT_NUM_EMBED" : 11,
     #     "UPPER_BODY_CLOTHING_NUM_EMBED" : 25,
     #     "LOWER_BODY_CLOTHING_NUM_EMBED" : 23,
-    #     "EMBED_FC1_OUT" : tune.grid_search([256,512,1024]),
-    #     "EMBED_FC2_OUT" : tune.grid_search([256,512,1024]),
-    #     "RESNET_FC1_OUT" : tune.grid_search([256,512,1024]),
-    #     "RESNET_FC2_OUT" : tune.grid_search([256,512,1024]),
-    #     "FC1_OUT" : tune.grid_search([256,512,1024]),
-    #     "FC2_OUT" : tune.grid_search([256,512,1024]),
+    #     "EMBED_FC1_OUT" : tune.grid_search([256,512]),
+    #     "EMBED_FC2_OUT" : tune.grid_search([256,512]),
+    #     "RESNET_FC1_OUT" : tune.grid_search([256,512]),
+    #     "RESNET_FC2_OUT" : tune.grid_search([256,512]),
+    #     "FC1_OUT" : tune.grid_search([256,512]),
+    #     "FC2_OUT" : tune.grid_search([256,512]),
     # }
-    config_old = {
+    config = {
         # "l1": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
         # "l2": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
         "lr": tune.loguniform(1e-4, 1e-1),
         "margin" : tune.loguniform(0.1,0.5),
-        "batchSize": tune.choice([25, 50, 100, 150]),
-        "GENDER_EMBED_DIM" : tune.choice([1,2]),
-        "AGE_EMBED_DIM" : tune.choice(range(2,6)),
-        "BODY_SHAPE_EMBED_DIM" : tune.choice(range(2,6)),
-        "ATTACHMENT_EMBED_DIM" : tune.choice(range(2,6)),
-        "UPPER_BODY_CLOTHING_EMBED_DIM" : tune.choice(range(2,6)),
-        "LOWER_BODY_CLOTHING_EMBED_DIM" : tune.choice(range(2,6)),
+        "batchSize": tune.choice([5, 10, 15, 20 ]),
+        "GENDER_EMBED_DIM" : 1,
+        "AGE_EMBED_DIM" : 3,
+        "BODY_SHAPE_EMBED_DIM" : 3,
+        "ATTACHMENT_EMBED_DIM" : 6,
+        "UPPER_BODY_CLOTHING_EMBED_DIM" : 6,
+        "LOWER_BODY_CLOTHING_EMBED_DIM" : 6,
         "GENDER_NUM_EMBED" : 2,
         "AGE_NUM_EMBED" : 6,
         "BODY_SHAPE_NUM_EMBED" : 6,
@@ -202,7 +202,8 @@ def main(args,num_samples=10,max_num_epochs=20, gpus_per_trial=2):
         "RESNET_FC1_OUT" : tune.choice([128,256,512,1024]),
         "RESNET_FC2_OUT" : tune.choice([128,256,512,1024]),
         "FC1_OUT" : tune.choice([128,256,512,1024]),
-        "FC2_OUT" : tune.choice([128,256,512,1024]),
+        "FC2_OUT" : 512,
+        "FUSED" : True
     }
     scheduler = ASHAScheduler(
         metric="loss",
