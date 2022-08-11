@@ -31,17 +31,19 @@ device = torch.device('cuda' if torch.cuda.is_available else 'cpu')
 torch.manual_seed(42)
 logger.info(F"running with {device}")
 
-img_width = 60
-img_height = 120
+img_width = 64
+img_height = 128
 batchSize = 100
 N_EPOCH = 5
 LIMIT_DATA = True
 
 def train(config,checkpoint_dir=None):
-    transform = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)),
+    transform = transforms.Compose([
                                     transforms.Resize((img_height,img_width)),# height,width
-                                    transforms.RandomRotation(degrees=45)])
+                                    transforms.RandomRotation(degrees=45),
+                                    transforms.ToTensor(),
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                                    ])
     
     pr = PreprocessRAPv2(args.anon_file,args.src_imgs)    
     triplets = pr.generateTriplets()
@@ -153,7 +155,7 @@ def plotLoss():
         print(F"unable to open {fileName} with exception {str(e)}")
 
 
-def main(args,num_samples=100,max_num_epochs=5, gpus_per_trial=2):
+def main(args,num_samples=50,max_num_epochs=50, gpus_per_trial=1):
     # config = {
     #     # "l1": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
     #     # "l2": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
@@ -184,7 +186,7 @@ def main(args,num_samples=100,max_num_epochs=5, gpus_per_trial=2):
         # "l2": tune.sample_from(lambda _: 2 ** np.random.randint(2, 9)),
         "lr": tune.loguniform(1e-4, 1e-1),
         "margin" : tune.loguniform(0.1,0.5),
-        "batchSize": tune.choice([5, 10, 15, 20 ]),
+        "batchSize": tune.choice([10, 50, 64, 100 ]),
         "GENDER_EMBED_DIM" : 1,
         "AGE_EMBED_DIM" : 3,
         "BODY_SHAPE_EMBED_DIM" : 3,
@@ -198,12 +200,14 @@ def main(args,num_samples=100,max_num_epochs=5, gpus_per_trial=2):
         "UPPER_BODY_CLOTHING_NUM_EMBED" : 25,
         "LOWER_BODY_CLOTHING_NUM_EMBED" : 23,
         "EMBED_FC1_OUT" : tune.choice([128,256,512,1024]),
-        "EMBED_FC2_OUT" : tune.choice([128,256,512,1024]),
+        "EMBED_FC2_OUT" : 512,
         "RESNET_FC1_OUT" : tune.choice([128,256,512,1024]),
-        "RESNET_FC2_OUT" : tune.choice([128,256,512,1024]),
+        "RESNET_FC2_OUT" : 512,
         "FC1_OUT" : tune.choice([128,256,512,1024]),
         "FC2_OUT" : 512,
-        "FUSED" : True
+        "FUSED" : True,
+        "FSI_TYPE" : "CONCAT_ATTN", #"CONCAT"
+        "FSI_ALPHA" : tune.choice([0.2,0.4,0.6,0.8])
     }
     scheduler = ASHAScheduler(
         metric="loss",

@@ -41,7 +41,7 @@ def getAttrOfIntrest():
 class PreprocessRAPv2:
     # fileLocation -> attribute file location
     # rootDir -> dir where the images are
-    def __init__(self,fileLocation,rootDir,MIN_IMGS_IN_TRACKLET=6):
+    def __init__(self,fileLocation,rootDir,MIN_IMGS_IN_TRACKLET=2):
         self.fileLocation = fileLocation
         self.rootDir = rootDir
         self.MIN_IMGS_IN_TRACKLET = MIN_IMGS_IN_TRACKLET
@@ -215,7 +215,7 @@ class PreprocessRAPv2:
             totalTriplets = 0
             for idx,t in enumerate(tracklets) :
                 _t_other = [x for x in range(len(tracklets)) if x != idx ]
-                pairsToGenerate = int(len(t["images"])/2)
+                pairsToGenerate = int(len(t["images"])/1.25)
                 negativeImgIdxes = random.sample(_t_other, pairsToGenerate)
 
                 anchor_range = list(range(0,pairsToGenerate))
@@ -273,5 +273,5 @@ if __name__ == "__main__" :
     fileLocation = "/home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat"
     rootDir = "/home/akunchala/Documents/z_Datasets/RAP_v2/derived/wireframes"
     rapD = PreprocessRAPv2(fileLocation,rootDir)
-    # rapD.describe()
+    rapD.describe()
     print(rapD.generateTriplets().keys())

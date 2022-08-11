@@ -19,15 +19,21 @@ FUSED_CONFIG = {
     "LOWER_BODY_CLOTHING_EMBED_DIM" : 6,
 
     # Config for embed fc layers
-    "EMBED_FC1_OUT" : 128,
+    "EMBED_FC1_OUT" : 256,
     "EMBED_FC2_OUT" : 512,
 
     # Config for resnet fc layers
-    "RESNET_FC1_OUT" : 1024,
+    "RESNET_FC1_OUT" : 256,
     "RESNET_FC2_OUT" : 512,
 
     "FC1_OUT" : 1024,
     "FC2_OUT" : 512,
+
+    "lr" : 0.00076,
+    "margin" : 0.11,
+    "batchSize" : 64,
     
-    "FUSED" : False
+    "FUSED" : True,
+    "FSI_TYPE" : "CONCAT_ATTN",
+    "FSI_ALPHA" : 0.6
 }
