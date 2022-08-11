@@ -25,16 +25,18 @@ device = torch.device('cuda' if torch.cuda.is_available else 'cpu')
 torch.manual_seed(42)
 logger.info(F"running with {device}")
 
-img_width = 60
-img_height = 120
-batchSize = 10
-N_EPOCH = 100
+img_width = 64
+img_height = 128
+batchSize = 50
+N_EPOCH = 50
 
 def train(args):
-    transform = transforms.Compose([transforms.ToTensor(),
+    transform = transforms.Compose([
                                     transforms.Resize((img_height,img_width)),# height,width
-                                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)),
-                                    transforms.RandomRotation(degrees=45)])
+                                    transforms.RandomRotation(degrees=45),
+                                    transforms.ToTensor(),
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                                    ])
     
     pr = PreprocessRAPv2(args.anon_file,args.src_imgs)    
     triplets = pr.generateTriplets()
@@ -44,14 +46,14 @@ def train(args):
     train_dataset = FusedDataset(args.src_imgs,train, transform)
     valid_dataset = FusedDataset(args.src_imgs,valid, transform)
 
-    train_dataloader = DataLoader(train_dataset,batch_size=batchSize,shuffle=True,drop_last=True)
-    valid_dataloader = DataLoader(valid_dataset,batch_size=batchSize,shuffle=True,drop_last=True)
+    train_dataloader = DataLoader(train_dataset,batch_size=FUSED_CONFIG["batchSize"],shuffle=True,drop_last=True)
+    valid_dataloader = DataLoader(valid_dataset,batch_size=FUSED_CONFIG["batchSize"]    ,shuffle=True,drop_last=True)
 
     model = FusedSimilarityNet(FUSED_CONFIG)
     model = model.to(device)
 
-    opt = torch.optim.Adam(model.parameters(),lr = 1e-4)
-    criterion = nn.TripletMarginLoss(margin=0.2)
+    opt = torch.optim.Adam(model.parameters(),lr=FUSED_CONFIG["lr"])
+    criterion = nn.TripletMarginLoss(margin=FUSED_CONFIG["margin"])
 
     # earlyStopping params
     patience = 10 # wait for this many epochs before stopping the training
@@ -120,9 +122,9 @@ def train(args):
         print(F"epoch:{epoch}, tl:{_tl}, vl:{_vl}")
 
         if FUSED_CONFIG["FUSED"] == True :
-            mName = "FSINet_fused" 
+            mName = F'FSINet_fused_{FUSED_CONFIG["FSI_TYPE"]}' 
         else :
-            mName = "FSINet_image_only"
+            mName = F'FSINet_image_only{FUSED_CONFIG["FSI_TYPE"]}'
 
         # earlyStopping
         if _vl < validLossPrev : # if there is a decrease in validLoss all is well 
@@ -147,7 +149,7 @@ def train(args):
 
 
 def plotLoss():
-    fileName = "FSINet_fused_losses.json"
+    fileName = "FSINet_fused_CONCAT_ATTN_losses.json"
     try :
         with open(fileName) as fd:
             d = json.load(fd)
