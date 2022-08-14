@@ -201,12 +201,12 @@ def main(args):
 
         if not args.no_render:
             tester.render_results(pare_results, input_image_folder, output_img_folder, output_path,
-                                  orig_width, orig_height, num_frames, use_background_img=True)
+                                  orig_width, orig_height, num_frames, use_background_img=True, use_random_mesh_color=True)
             
             pare_results_custom_shape = customShape(pare_results)
 
             tester.render_results(pare_results_custom_shape, input_image_folder, output_img_folder_custom_shape, output_path,
-                                  orig_width, orig_height, num_frames, use_background_img=True)
+                                  orig_width, orig_height, num_frames, use_background_img=True, use_random_mesh_color=True)
 
             # ========= Save rendered video ========= #
             vid_name = "out_video"
