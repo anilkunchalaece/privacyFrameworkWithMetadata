@@ -28,7 +28,7 @@ logger.info(F"running with {device}")
 img_width = 64
 img_height = 128
 batchSize = 50
-N_EPOCH = 50
+N_EPOCH = 1000
 
 def train(args):
     transform = transforms.Compose([
@@ -130,7 +130,7 @@ def train(args):
         if _vl < validLossPrev : # if there is a decrease in validLoss all is well 
             badEpoch = 0 # reset bad epochs
             #save model
-            torch.save(model.state_dict(),F"models/{mName}e{epoch}.pth")
+            torch.save(model.state_dict(),F"models/{mName}e{epoch}_Without_BN.pth")
 
         else :
             if _vl - validLossPrev >= 0.000001 : # min delta

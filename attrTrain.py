@@ -66,7 +66,7 @@ def valid_loop(dataloader,model,loss_fcn):
 
 
 def train(args):
-    data = PreprocessRAPv2(args.dataset).processData()
+    data = PreprocessRAPv2(args.dataset,args.src_dir).processData()
     
     if args.data_percent != 100:
         data["partition"]["train"] = data["partition"]["train"][:int(len(data["partition"]["train"])/(100-args.data_percent))]

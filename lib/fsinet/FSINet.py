@@ -20,7 +20,7 @@ class FusedSimilarityNet(nn.Module):
 
         self.resnet.fc = nn.Sequential(
             nn.Linear(fc_inp, config["RESNET_FC1_OUT"]),
-            nn.BatchNorm1d(config["RESNET_FC1_OUT"]),
+            #nn.BatchNorm1d(config["RESNET_FC1_OUT"]),
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(config["RESNET_FC1_OUT"], config["RESNET_FC2_OUT"])
@@ -37,7 +37,7 @@ class FusedSimilarityNet(nn.Module):
 
                 self.embed_fc = nn.Sequential(
                     nn.Linear(embed_fc_inp, config["EMBED_FC1_OUT"]),
-                    nn.BatchNorm1d(config["EMBED_FC1_OUT"]),
+                    #nn.BatchNorm1d(config["EMBED_FC1_OUT"]),
                     nn.ReLU(inplace=True),
                     nn.Dropout(),
                     nn.Linear(config["EMBED_FC1_OUT"], config["EMBED_FC2_OUT"])
@@ -50,14 +50,14 @@ class FusedSimilarityNet(nn.Module):
 
                 self.fsi_out = nn.Sequential(
                                             nn.Linear(fsi_in_shape, config["FC1_OUT"]),
-                                            nn.BatchNorm1d(config["FC1_OUT"]),
+                                            #nn.BatchNorm1d(config["FC1_OUT"]),
                                             nn.ReLU(),
                                             nn.Dropout(),
                                             nn.Linear(config["FC1_OUT"],config["FC2_OUT"])
                                             )
 
-                self.img_attn = nn.MultiheadAttention(config["EMBED_FC2_OUT"],8,batch_first=True,dropout=0.5)
-                self.embed_attn = nn.MultiheadAttention(config["EMBED_FC2_OUT"],8,batch_first=True,dropout=0.5)
+                self.img_attn = nn.MultiheadAttention(config["EMBED_FC2_OUT"],4,batch_first=True,dropout=0.5)
+                self.embed_attn = nn.MultiheadAttention(config["EMBED_FC2_OUT"],4,batch_first=True,dropout=0.5)
             
                 print("running fused images")
 
