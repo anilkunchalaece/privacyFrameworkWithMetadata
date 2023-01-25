@@ -3,6 +3,7 @@ This script is used to train FSINet
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 import torchvision
@@ -43,6 +44,7 @@ def train(args):
     # train, valid = train_test_split(triplets,shuffle=True)
     train , valid, test = triplets["train"] , triplets["val"], triplets["test"]
 
+
     train_dataset = FusedDataset(args.src_imgs,train, transform)
     valid_dataset = FusedDataset(args.src_imgs,valid, transform)
 
@@ -54,6 +56,7 @@ def train(args):
 
     opt = torch.optim.Adam(model.parameters(),lr=FUSED_CONFIG["lr"])
     criterion = nn.TripletMarginLoss(margin=FUSED_CONFIG["margin"])
+    # criterion = nn.TripletMarginWithDistanceLoss(margin=1,distance_function=nn.CosineSimilarity())
 
     # earlyStopping params
     patience = 10 # wait for this many epochs before stopping the training

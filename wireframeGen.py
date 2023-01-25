@@ -39,10 +39,10 @@ CKPT = 'data/pare/checkpoints/pare_w_3dpw_checkpoint.ckpt'
 MIN_NUM_FRAMES = 0
 
 class WireframeGen:
-    def __init__(self,args):
+    def __init__(self,args,out_img_width=1280,out_img_height=720):
         self.args = args
-        self.out_img_width = 432 # x_scaled
-        self.out_img_height = 240 # y_scaled
+        self.out_img_width = out_img_width # x_scaled
+        self.out_img_height = out_img_height # y_scaled
         self.in_img_width = 1920 # x_org
         self.in_img_height = 1080 # y_org
         self.draw_bbox_resized = True
@@ -189,16 +189,22 @@ class WireframeGen:
         # print(outImgPath)
         cv2.imwrite(outImgPath,resizedImg)
 
-    # generate background images using STTN - https://github.com/researchmm/STTN 
-    def generateBackgroundImgs(self,srcImgsDir=None):
+    # generate background images
+    # currently STTN and E2FGVI are supported
+    def generateBackgroundImgs(self,srcImgsDir=None, model="e2fgvi"):
         backgroundImgsDir = os.path.join(self.args.tmp_dir,"background")
         os.makedirs(backgroundImgsDir,exist_ok=True)
-
         maskImgDir = os.path.join(self.args.tmp_dir,"masks")
-        ckptFile = os.path.join("data","sttn_data","sttn.pth")
         if srcImgsDir == None : 
             srcImgsDir = os.path.join(self.args.tmp_dir,"src","orig_images_scaled")
-        cmd = ["python","runSttn.py","--mask",maskImgDir,"--ckpt",ckptFile,"--image_dir",srcImgsDir,"--output_dir",backgroundImgsDir]
+        
+        if model == "e2fgvi" :
+            ckptFile = os.path.join("data","e2fgvi_data","E2FGVI-HQ-CVPR22.pth")
+            cmd = ["python", "runE2fgvi.py","--video", srcImgsDir, "--mask", maskImgDir, "--output_dir",backgroundImgsDir,"--ckpt", ckptFile]
+        else : 
+            # generate background images using STTN - https://github.com/researchmm/STTN 
+            ckptFile = os.path.join("data","sttn_data","sttn.pth")
+            cmd = ["python","runSttn.py","--mask",maskImgDir,"--ckpt",ckptFile,"--image_dir",srcImgsDir,"--output_dir",backgroundImgsDir]
         cmd = " ".join(cmd)
         os.system(cmd)
 

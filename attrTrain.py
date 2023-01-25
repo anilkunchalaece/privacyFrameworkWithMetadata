@@ -206,10 +206,25 @@ def infer(args):
     
     return outFile
 
+def plotLoss():
+    fileName = "FSINet_fused_CONCAT_ATTN_losses.json"
+    try :
+        with open(fileName) as fd:
+            d = json.load(fd)
+            NO_OF_ITEMS = 100
+            plt.plot(d["train"][:NO_OF_ITEMS],label="Training")
+            plt.plot(d["valid"][:NO_OF_ITEMS],label="Validation")
+            plt.title("AttrNet training and validataion losses")
+            plt.legend()
+            plt.show()
+    except Exception as e :
+        print(F"unable to open {fileName} with exception {str(e)}")
+
+
 if __name__ == "__main__" :
     # cmdToRun - python attrTrain.py --src_dir /home/akunchala/Documents/z_Datasets/RAP_v2/RAP_dataset --dataset /home/akunchala/Documents/z_Datasets/RAP_v2/RAP_annotation/RAP_annotation.mat
     parser = argparse.ArgumentParser()
-    parser.add_argument("--action", type=str, help="train / infer",required=False, default="infer")
+    parser.add_argument("--action", type=str, help="train / infer / plot",required=False, default="infer")
 
     # args for traning
     parser.add_argument("--src_dir",type=str,help="input imgs location",required=False, default=None)
@@ -230,5 +245,7 @@ if __name__ == "__main__" :
 
     if args.action == "train" :
         train(args)
+    elif args.action == "plot" :
+        plotLoss()
     else :
         infer(args)

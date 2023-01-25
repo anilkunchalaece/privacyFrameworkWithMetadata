@@ -8,19 +8,22 @@ from loguru import logger
 class FusedSimilarityNet(nn.Module):
     def __init__(self,config):
         super(FusedSimilarityNet,self).__init__()
-        self.resnet = models.resnet18(pretrained=True)
+        self.resnet = models.efficientnet_b7(pretrained=True)
 
         self.config = config
 
         # freeze layers of pretrained model
         for param in self.resnet.parameters():
             param.requires_grad = False
+        # print(self.resnet)
+        # fc_inp = self.resnet.fc.in_features
+        fc_inp = 2560
+        # fc_inp = self.resnet.classifier.in_features
 
-        fc_inp = self.resnet.fc.in_features
-
-        self.resnet.fc = nn.Sequential(
+        self.resnet.classifier = nn.Sequential(
             nn.Linear(fc_inp, config["RESNET_FC1_OUT"]),
             #nn.BatchNorm1d(config["RESNET_FC1_OUT"]),
+            # nn.BatchNorm1d(config["RESNET_FC1_OUT"]),
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(config["RESNET_FC1_OUT"], config["RESNET_FC2_OUT"])
@@ -39,6 +42,8 @@ class FusedSimilarityNet(nn.Module):
                     nn.Linear(embed_fc_inp, config["EMBED_FC1_OUT"]),
                     #nn.BatchNorm1d(config["EMBED_FC1_OUT"]),
                     nn.ReLU(inplace=True),
+                    # nn.BatchNorm1d(config["EMBED_FC1_OUT"]),
+                    nn.ReLU(),
                     nn.Dropout(),
                     nn.Linear(config["EMBED_FC1_OUT"], config["EMBED_FC2_OUT"])
                 )
@@ -47,10 +52,13 @@ class FusedSimilarityNet(nn.Module):
                     fsi_in_shape = config["EMBED_FC2_OUT"]+config["RESNET_FC2_OUT"]
                 elif config["FSI_TYPE"] == "ADD" :
                     fsi_in_shape = config["EMBED_FC2_OUT"]
+                elif config["FSI_TYPE"] == "ATTN_IMG_F" :
+                    fsi_in_shape = config["RESNET_FC2_OUT"]
 
                 self.fsi_out = nn.Sequential(
                                             nn.Linear(fsi_in_shape, config["FC1_OUT"]),
                                             #nn.BatchNorm1d(config["FC1_OUT"]),
+                                            # nn.BatchNorm1d(config["FC1_OUT"]),
                                             nn.ReLU(),
                                             nn.Dropout(),
                                             nn.Linear(config["FC1_OUT"],config["FC2_OUT"])
@@ -58,6 +66,11 @@ class FusedSimilarityNet(nn.Module):
 
                 self.img_attn = nn.MultiheadAttention(config["EMBED_FC2_OUT"],4,batch_first=True,dropout=0.5)
                 self.embed_attn = nn.MultiheadAttention(config["EMBED_FC2_OUT"],4,batch_first=True,dropout=0.5)
+                self.img_attn = nn.MultiheadAttention(config["EMBED_FC2_OUT"],config["ATTN_NO_HEADS"],batch_first=True,dropout=0.5)
+                self.embed_attn = nn.MultiheadAttention(config["EMBED_FC2_OUT"],config["ATTN_NO_HEADS"],batch_first=True,dropout=0.5)
+
+                self.embed_self_attn = nn.MultiheadAttention(config["EMBED_FC2_OUT"], config["ATTN_NO_HEADS"], batch_first=True, dropout=0.4)
+                self.embed_self_attn_2 = nn.MultiheadAttention(config["EMBED_FC2_OUT"], config["ATTN_NO_HEADS"], batch_first=True, dropout=0.4)
             
                 print("running fused images")
 
@@ -89,10 +102,30 @@ class FusedSimilarityNet(nn.Module):
             if self.config["FSI_TYPE"] == "CONCAT_ATTN" : 
                 # print(F"img_shape : {img_f.shape}, embed_shape: {embed_f.shape}, {torch.unsqueeze(embed_f,1).shape}")
                 # img_f, embed_f = self.attention(img_f, embed_f)
+                
+                # embed_f,_ = self.embed_self_attn(torch.unsqueeze(embed_f,1),torch.unsqueeze(embed_f,1),torch.unsqueeze(embed_f,1))
+                # embed_f = torch.squeeze(embed_f,1)
+
                 img_f_attn_out,_ = self.img_attn(torch.unsqueeze(img_f,1), torch.unsqueeze(embed_f,1), torch.unsqueeze(embed_f,1))
                 embed_f_attn_out,_ = self.embed_attn(torch.unsqueeze(embed_f,1), torch.unsqueeze(img_f,1), torch.unsqueeze(img_f,1))
                 # print(F"{img_f_attn_out.shape} , {embed_f_attn_out.shape}")
+
+                # img_f_attn_out,_ = self.embed_self_attn_2(embed_f_attn_out,embed_f_attn_out,embed_f_attn_out)
+
                 out = self.fsi_out(torch.cat([img_f_attn_out.squeeze(1),embed_f_attn_out.squeeze(1)],dim=1))
+            
+            elif self.config["FSI_TYPE"] == "ATTN_IMG_F" :
+                embed_f,_ = self.embed_self_attn(torch.unsqueeze(embed_f,1),torch.unsqueeze(embed_f,1),torch.unsqueeze(embed_f,1))
+                embed_f = torch.squeeze(embed_f,1)
+
+                img_f_attn_out,_ = self.img_attn(torch.unsqueeze(img_f,1), torch.unsqueeze(embed_f,1), torch.unsqueeze(embed_f,1))
+                # embed_f_attn_out,_ = self.embed_attn(torch.unsqueeze(embed_f,1), torch.unsqueeze(img_f,1), torch.unsqueeze(img_f,1))
+                # print(F"{img_f_attn_out.shape} , {embed_f_attn_out.shape}")
+
+                # img_f_attn_out,_ = self.embed_self_attn_2(embed_f_attn_out,embed_f_attn_out,embed_f_attn_out)
+
+                # out = self.fsi_out(torch.cat([img_f_attn_out.squeeze(1),embed_f_attn_out.squeeze(1)],dim=1))     
+                out = self.fsi_out(img_f_attn_out.squeeze(1))           
                 
             elif self.config["FSI_TYPE"] == "CONCAT" :
                 out = self.fsi_out(torch.cat([img_f,embed_f],dim=1))

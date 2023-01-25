@@ -32,6 +32,8 @@ FUSED_CONFIG = {
     "lr" : 0.00076,
     "margin" : 0.11,
     "batchSize" : 64,
+
+    "ATTN_NO_HEADS" : 8,
     
     "FUSED" : True,
     "FSI_TYPE" : "CONCAT_ATTN",
