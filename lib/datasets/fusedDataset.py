@@ -127,7 +127,8 @@ class FusedDataset(Dataset):
         return [gender_idx,age_idx,bodyShape_idx,attachment_idx,upperBody_idx,lowerBody_idx]
 
     def visualizeTriplets(self,annotationFile,rootDir,origImgDir) :
-        triplets = self.allTriplets#self.generateTriplets(annotationFile,rootDir)
+        triplets = self.allTriplets["train"]#self.generateTriplets(annotationFile,rootDir)
+        # print(triplets)
         triplets_sel = random.sample(list(range(len(triplets))),9)
         # select 3 triplets and show them in grid
         fig = plt.figure()

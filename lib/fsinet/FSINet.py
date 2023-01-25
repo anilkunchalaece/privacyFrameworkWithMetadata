@@ -8,17 +8,19 @@ from loguru import logger
 class FusedSimilarityNet(nn.Module):
     def __init__(self,config):
         super(FusedSimilarityNet,self).__init__()
-        self.resnet = models.resnet18(pretrained=True)
+        self.resnet = models.efficientnet_b7(pretrained=True)
 
         self.config = config
 
         # freeze layers of pretrained model
         for param in self.resnet.parameters():
             param.requires_grad = False
+        # print(self.resnet)
+        # fc_inp = self.resnet.fc.in_features
+        fc_inp = 2560
+        # fc_inp = self.resnet.classifier.in_features
 
-        fc_inp = self.resnet.fc.in_features
-
-        self.resnet.fc = nn.Sequential(
+        self.resnet.classifier = nn.Sequential(
             nn.Linear(fc_inp, config["RESNET_FC1_OUT"]),
             # nn.BatchNorm1d(config["RESNET_FC1_OUT"]),
             nn.ReLU(),
