@@ -11,14 +11,14 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 import torch
 
-from lib.e2fgvi.core.utils import to_tensors
+from core.utils import to_tensors
 
 parser = argparse.ArgumentParser(description="E2FGVI")
 parser.add_argument("-v", "--video", type=str, required=True)
-parser.add_argument("-c", "--ckpt", type=str, default="data/e2fgvi/E2FGVI-HQ-CVPR22.pth")
+parser.add_argument("-c", "--ckpt", type=str, required=True)
 parser.add_argument("-m", "--mask", type=str, required=True)
 parser.add_argument("-o", "--output_dir", type=str, required=True)
-parser.add_argument("--model", type=str, default="e2fgvi_hq")
+parser.add_argument("--model", type=str, choices=['e2fgvi', 'e2fgvi_hq'])
 parser.add_argument("--step", type=int, default=10)
 parser.add_argument("--num_ref", type=int, default=-1)
 parser.add_argument("--neighbor_stride", type=int, default=5)
@@ -38,7 +38,7 @@ default_fps = args.savefps
 
 
 # sample reference frames from the whole video
-def get_ref_index(f, neighbor_ids, length,ref_length=args.step):
+def get_ref_index(f, neighbor_ids, length):
     ref_index = []
     if num_ref == -1:
         for i in range(0, length, ref_length):
@@ -71,29 +71,6 @@ def read_mask(mpath, size):
         masks.append(Image.fromarray(m * 255))
     return masks
 
-def get_mask_tensors(mask_names,size):
-    masks = []
-
-    for mp in mask_names:
-        m = Image.open(mp)
-        # m = m.resize(size[:2], Image.NEAREST)
-        m = np.array(m.convert('L'))
-        m = np.array(m > 0).astype(np.uint8)
-        m = cv2.dilate(m,
-                       cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3)),
-                       iterations=4)
-        masks.append(Image.fromarray(m * 255))
-    masks = to_tensors()(masks).unsqueeze(0)
-    return masks    
-
-# get mask filenames 
-def get_mask_file_names(mpath) :
-    masks = []
-    mnames = os.listdir(mpath)
-    mnames.sort()
-    mnames = [os.path.join(mpath,f) for f in mnames]
-    return mnames    
-
 
 #  read frames from video
 def read_frame_from_videos(args):
@@ -118,6 +95,24 @@ def read_frame_from_videos(args):
             frames.append(image)
     return frames
 
+# get mask filenames 
+def get_mask_file_names() :
+    mpath = args.mask
+    masks = []
+    mnames = os.listdir(mpath)
+    mnames.sort()
+    mnames = [os.path.join(mpath,f) for f in mnames]
+    return mnames    
+
+# get frame file names
+def get_frame_file_names():
+    vname = args.video
+    frames = []
+    lst = os.listdir(vname)
+    lst.sort()
+    fr_lst = [os.path.join(vname,name) for name in lst]
+    return fr_lst
+
 def get_image_tensors(img_file_names) :
     frames = []
     for f in img_file_names :
@@ -125,17 +120,22 @@ def get_image_tensors(img_file_names) :
         image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         frames.append(image)
     frames = to_tensors()(frames).unsqueeze(0) * 2 - 1
-    return frames        
+    return frames
 
+def get_mask_tensors(mask_names,size):
+    masks = []
 
-# get frame file names
-def get_frame_file_names(args):
-    vname = args.video
-    frames = []
-    lst = os.listdir(vname)
-    lst.sort()
-    fr_lst = [os.path.join(vname,name) for name in lst]
-    return fr_lst
+    for mp in mask_names:
+        m = Image.open(mp)
+        # m = m.resize(size[:2], Image.NEAREST)
+        m = np.array(m.convert('L'))
+        m = np.array(m > 0).astype(np.uint8)
+        m = cv2.dilate(m,
+                       cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3)),
+                       iterations=4)
+        masks.append(Image.fromarray(m * 255))
+    masks = to_tensors()(masks).unsqueeze(0)
+    return masks  
 
 
 # resize frames
@@ -147,7 +147,10 @@ def resize_frames(frames, size=None):
     return frames, size
 
 
-def main_worker():
+def main_worker(frames,masks,sId=0):
+
+    os.makedirs(args.output_dir,exist_ok=True)
+
     # set up models
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -158,7 +161,7 @@ def main_worker():
     else:
         size = None
 
-    net = importlib.import_module('lib.e2fgvi.model.' + args.model)
+    net = importlib.import_module('model.' + args.model)
     model = net.InpaintGenerator().to(device)
     data = torch.load(args.ckpt, map_location=device)
     model.load_state_dict(data)
@@ -170,13 +173,12 @@ def main_worker():
     print(
         f'Loading videos and masks from: {args.video} | INPUT MP4 format: {args.use_mp4}'
     )
-    frames = get_frame_file_names(args)
     # frames = read_frame_from_videos(args)
     # frames, size = resize_frames(frames, size)
     size = cv2.imread(frames[0]).shape
     h, w = size[0], size[1]
     video_length = len(frames)
-
+    # video_length = len(frames)
     # imgs = to_tensors()(frames).unsqueeze(0) * 2 - 1
     # frames = [np.array(f).astype(np.uint8) for f in frames]
 
@@ -186,45 +188,22 @@ def main_worker():
     # ]
     # masks = to_tensors()(masks).unsqueeze(0)
     # imgs, masks = imgs.to(device), masks.to(device)
-    masks = get_mask_file_names(args.mask)
+    # comp_frames = [None] * video_length
 
     # completing holes by e2fgvi
     print(f'Start test...')
-
     for f in tqdm(range(0, video_length, neighbor_stride)):
-        
         neighbor_ids = [
             i for i in range(max(0, f - neighbor_stride),
-                            min(video_length, f + neighbor_stride + 1))
+                             min(video_length, f + neighbor_stride + 1))
         ]
-
         ref_ids = get_ref_index(f, neighbor_ids, video_length)
-        
-        ref_diff = [abs(x-f) for x in ref_ids] # get the closet value in ref_ids
-        ref_diff_index = ref_diff.index(min(ref_diff))
-        
-        # take the references around the current frame
-        if ref_diff_index < 3 :
-            ref_start_idx = 0
-            ref_end_idx = 6
-        elif ref_diff_index > video_length - 3 :
-            ref_start_idx = video_length - 6
-            ref_end_idx = video_length 
-        else :
-            ref_start_idx = ref_diff_index - 3
-            ref_end_idx = ref_diff_index + 3
-
-        #consider only first 20 images as references, to avoid memory errors
-        ref_ids = ref_ids[ref_start_idx:ref_end_idx] # What is the effect of performance ? TODO
-
         # selected_imgs = imgs[:1, neighbor_ids + ref_ids, :, :, :]
         # selected_masks = masks[:1, neighbor_ids + ref_ids, :, :, :]
-        
+
         selected_ids = neighbor_ids+ref_ids
         selected_img_names = [frames[idx] for idx in selected_ids]
         selected_mask_names = [masks[idx] for idx in selected_ids]
-
-        # print(F"selecteid => {len(selected_ids)}, ref_ids {len(ref_ids)}")
 
         selected_imgs = get_image_tensors(selected_img_names).to(device)
         selected_masks = get_mask_tensors(selected_mask_names, size).to(device)
@@ -244,26 +223,27 @@ def main_worker():
             pred_imgs, _ = model(masked_imgs, len(neighbor_ids))
             pred_imgs = pred_imgs[:, :, :h, :w]
             pred_imgs = (pred_imgs + 1) / 2
-            pred_imgs = pred_imgs.cpu().permute(0, 2, 3, 1).numpy() * 255 # original
-
+            pred_imgs = pred_imgs.cpu().permute(0, 2, 3, 1).numpy() * 255
             for i in range(len(neighbor_ids)):
                 idx = neighbor_ids[i]
                 c_frame = np.array(Image.fromarray(cv2.cvtColor(cv2.imread(frames[idx]), cv2.COLOR_BGR2RGB))).astype(np.uint8)
                 c_binary_mask =  np.expand_dims((np.array(cv2.imread(masks[idx])) != 0).astype(np.uint8), 2).squeeze()
-
+               
                 # img = np.array(pred_imgs[i]).astype(
                 #     np.uint8) * binary_masks[idx] + frames[idx] * (
                 #         1 - binary_masks[idx])
-                img = np.array(pred_imgs[i]).astype(
-                    np.uint8) * c_binary_mask + c_frame * (
-                        1 - c_binary_mask)                
                 # if comp_frames[idx] is None:
                 #     comp_frames[idx] = img
                 # else:
                 #     comp_frames[idx] = comp_frames[idx].astype(
                 #         np.float32) * 0.5 + img.astype(np.float32) * 0.5
 
-                fToSave = os.path.join(args.output_dir, F"{idx:06d}.{frames[0].split('.')[-1]}")
+                img = np.array(pred_imgs[i]).astype(
+                    np.uint8) * c_binary_mask + c_frame * (
+                        1 - c_binary_mask) 
+
+                # fToSave = os.path.join(args.output_dir, F"{idx:06d}.{frames[0].split('.')[-1]}")
+                fToSave = os.path.join(args.output_dir, os.path.basename(frames[idx]))
                 if not os.path.isfile(fToSave) :
                     img_to_save = img
                 else :
@@ -271,5 +251,34 @@ def main_worker():
                 cv2.imwrite(fToSave,cv2.cvtColor(img_to_save,cv2.COLOR_BGR2RGB))
 
 
+
+def main():
+    frames_names = get_frame_file_names()
+    masks_names = get_mask_file_names()
+
+    BATCH_SIZE = 5 # change based on system capability
+
+    if len(frames_names) != len(masks_names) :
+        raise(F"number of frames :{len(frames_names)} should be equal to number of masks :{len(masks_names)}")
+    print(F"total number of images in dataset are {len(frames_names)}")
+
+    if len(frames_names) < BATCH_SIZE :
+        main_worker(frames_names,masks_names)
+    else :
+        for i in range(0, len(frames_names),BATCH_SIZE):
+            sIdx = i
+            eIdx = i+BATCH_SIZE
+
+            # for last set, maintain the batchsize
+            if eIdx >= len(frames_names) :
+                eIdx = len(frames_names)
+                sIdx = len(frames_names) - BATCH_SIZE
+            print(F"Running frames from {sIdx} to {eIdx}")
+            main_worker(frames_names[sIdx:eIdx], masks_names[sIdx:eIdx],sIdx)
+    
+
+
+
 if __name__ == '__main__':
-    main_worker()
+    # main_worker()
+    main()

@@ -44,6 +44,8 @@ class MetadataGenerator:
         else :
             detFile = self.args.det_file
         personDets = getPersonsFromPkl(detFile)
+        del objDets
+        torch.cuda.empty_cache()
         # print(personDets.keys())
         return personDets
 
@@ -228,6 +230,8 @@ class MetadataGenerator:
     # used to generate wireframe for given images using PARE - https://github.com/mkocabas/PARE
     def generateWireframes(self,mars=False,tester=None):
         wg = WireframeGen(self.args)
+        print("resizing images in dir")
+        wg.resizeImgsInDir()
         if mars == False :
             wg.generateWireframes(self.args.src_imgs,useRunPare=True)
         else :
@@ -251,7 +255,9 @@ def main(args):
     torch.cuda.empty_cache()
     renameSrcDir(args.src_imgs)
     mg = MetadataGenerator(args)
-    mg.generateMetadaForEachImg()
+    print("generating metadata for images")
+    # mg.generateMetadaForEachImg()
+    print("generating wireframes for images")
     mg.generateWireframes()
     torch.cuda.empty_cache()
 
@@ -311,7 +317,7 @@ if __name__ == "__main__":
     parser.add_argument("--img_height",type=str, help="image height for training", required=False, default=256)
     parser.add_argument("--img_width",type=str, help="image width for training", required=False, default=192)
     parser.add_argument("--attr_infer_dir", type=str, help="dir contains tracklets for inference",required=False, default="tmp/tracklets")
-    parser.add_argument("--attr_trained_model", type=str, help="path to trained model",required=False, default="models/attrnet_ckpt_975.pth")
+    parser.add_argument("--attr_trained_model", type=str, help="path to trained model",required=False, default="/home/ICTDOMAIN/d20125529/privacyFrameworkWithMetadata/models/attrnet_ckpt_975.pth")
     parser.add_argument("--attr_batch_size",type=int, help="batch size used for traning", required=False,default=100)
 
     #PARE configuration

@@ -170,14 +170,27 @@ class WireframeGen:
             "scaled_pascal" : np.array(scaled_bboxes_pascal)
         }
 
-    def resizeImgsInDir(self,imagesDir=None):
-        if imagesDir != None :
-            self.args.src_imgs = imagesDir # if imagesDir specified use it instead of src_imgs in args
+    def resizeImgsInDir(self,masks=False,imagesDir=None,):
 
-        allImgs = os.listdir(self.args.src_imgs)
+        if masks == False :
+            if imagesDir != None :
+                self.args.src_imgs = imagesDir # if imagesDir specified use it instead of src_imgs in args
 
-        with Pool() as pool:
-            pool.map(self.resizeImg, allImgs)
+            allImgs = os.listdir(self.args.src_imgs)
+
+            with Pool() as pool:
+                pool.map(self.resizeImg, allImgs)
+        else :
+            allImgs = [os.path.join(imagesDir,x) for x in os.listdir(imagesDir)]
+            with Pool() as pool:
+                pool.map(self.resizeMasks, allImgs)
+
+    
+    def resizeMasks(self,img) :
+        srcImg = cv2.imread(img)
+        resizedImg = cv2.resize(srcImg,(self.out_img_width,self.out_img_height),cv2.INTER_CUBIC)
+        # print(outImgPath)
+        cv2.imwrite(img,resizedImg)        
 
     
     def resizeImg(self,img) :
@@ -195,11 +208,14 @@ class WireframeGen:
         backgroundImgsDir = os.path.join(self.args.tmp_dir,"background")
         os.makedirs(backgroundImgsDir,exist_ok=True)
         maskImgDir = os.path.join(self.args.tmp_dir,"masks")
+        self.resizeImgsInDir(masks=True,imagesDir=maskImgDir) # TODO - Improve this logic
         if srcImgsDir == None : 
             srcImgsDir = os.path.join(self.args.tmp_dir,"src","orig_images_scaled")
         
         if model == "e2fgvi" :
-            ckptFile = os.path.join("data","e2fgvi_data","E2FGVI-HQ-CVPR22.pth")
+            # ckptFile = os.path.join("data","e2fgvi","E2FGVI-HQ-CVPR22.pth")
+            ckptFile = "/home/ICTDOMAIN/d20125529/privacyFrameworkWithMetadata/data/e2fgvi/E2FGVI-HQ-CVPR22.pth"
+            torch.cuda.empty_cache()
             cmd = ["python", "runE2fgvi.py","--video", srcImgsDir, "--mask", maskImgDir, "--output_dir",backgroundImgsDir,"--ckpt", ckptFile]
         else : 
             # generate background images using STTN - https://github.com/researchmm/STTN 
@@ -207,6 +223,7 @@ class WireframeGen:
             cmd = ["python","runSttn.py","--mask",maskImgDir,"--ckpt",ckptFile,"--image_dir",srcImgsDir,"--output_dir",backgroundImgsDir]
         cmd = " ".join(cmd)
         os.system(cmd)
+        torch.cuda.empty_cache()
 
     def runPare(self,srcImgs,outDir) :
         srcImgs = os.path.join(self.args.tmp_dir,"src","orig_images_scaled")
@@ -216,8 +233,7 @@ class WireframeGen:
 
     # use PARE to generate wireframes
     def generateWireframes(self,srcImgs, personDetectionFile=None,outDir=None,useRunPare=False):
-
-        # check image size in srcImgs
+        # check image size in srcImgsimagesDir
         # if size does not match resize all the images 
         img = cv2.imread(os.path.join(srcImgs,os.listdir(srcImgs)[0]))
         height, width , _ = img.shape
@@ -225,7 +241,7 @@ class WireframeGen:
         if (height != self.out_img_height or width == self.out_img_width) :
             dirToStoreResizedImgs = os.path.join(self.args.tmp_dir,"src","orig_images_scaled")
             os.makedirs(dirToStoreResizedImgs,exist_ok=True)
-            self.resizeImgsInDir(srcImgs)
+            self.resizeImgsInDir(imagesDir=srcImgs)
             srcImgs = dirToStoreResizedImgs
 
         # generate background images
@@ -318,7 +334,7 @@ class WireframeGen:
         if (height != self.out_img_height or width == self.out_img_width) :
             dirToStoreResizedImgs = os.path.join(self.args.tmp_dir,"src","orig_images_scaled")
             os.makedirs(dirToStoreResizedImgs,exist_ok=True)
-            self.resizeImgsInDir(srcImgs)
+            self.resizeImgsInDir(imagesDir=srcImgs)
             srcImgs = dirToStoreResizedImgs
 
 
